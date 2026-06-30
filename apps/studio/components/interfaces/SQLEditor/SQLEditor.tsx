@@ -59,6 +59,11 @@ import {
 import { useAddDefinitions } from './useAddDefinitions'
 import { UtilityPanel } from './UtilityPanel/UtilityPanel'
 import {
+  getSqlWarehouseFooterLabel,
+  getSqlWarehouseRouting,
+  SQL_WAREHOUSE_ROUTING_TOOLTIPS,
+} from '@/components/interfaces/Database/Warehouse/warehouseNaming.utils'
+import {
   isExplainQuery,
   isExplainSql,
   splitSqlStatements,
@@ -73,6 +78,8 @@ import { lintKeys } from '@/data/lint/keys'
 import { useReadReplicasQuery } from '@/data/read-replicas/replicas-query'
 import { useExecuteSqlMutation } from '@/data/sql/execute-sql-mutation'
 import { isError } from '@/data/utils/error-check'
+import { useSqlWarehouseLagSeconds } from '@/data/warehouse/use-sql-warehouse-lag'
+import { useIsWarehouseEnabled } from '@/hooks/misc/useIsWarehouseEnabled'
 import { useOrgAiOptInLevel } from '@/hooks/misc/useOrgOptedIntoAi'
 import { useSelectedOrganizationQuery } from '@/hooks/misc/useSelectedOrganization'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
@@ -296,6 +303,18 @@ export const SQLEditor = () => {
       }
     },
   })
+
+  // Surface (but never change) where the current query runs, gated behind the warehouse flag.
+  const isWarehouseEnabled = useIsWarehouseEnabled()
+  // Read-only inspection of the snippet text for routing detection (never executed here).
+  const sql = String(snapV2.snippets[id]?.snippet?.content?.unchecked_sql ?? '')
+  const sqlWarehouseLagSeconds = useSqlWarehouseLagSeconds(sql)
+  const resultWarehouseRouting =
+    isWarehouseEnabled && Boolean(results) && !results?.error && !isExecuting
+      ? getSqlWarehouseRouting(sql)
+      : 'postgres'
+  const resultWarehouseLagSeconds =
+    resultWarehouseRouting !== 'postgres' ? sqlWarehouseLagSeconds : undefined
 
   const setAiTitle = useCallback(
     async (id: string, sql: string) => {
@@ -1039,34 +1058,57 @@ export const SQLEditor = () => {
             )}
           </ResizablePanel>
 
-          <div className="h-9">
+          <div className="h-[59px]">
             {results?.rows !== undefined && !isExecuting && (
-              <GridFooter className="flex items-center justify-between gap-2">
-                <Tooltip>
-                  <TooltipTrigger>
-                    <p className="text-xs">
-                      <span className="text-foreground">
-                        {results.rows.length} row{results.rows.length > 1 ? 's' : ''}
-                      </span>
-                      <span className="text-foreground-lighter ml-1">
-                        {results.autoLimit !== undefined &&
-                          ` (Limited to only ${results.autoLimit} rows)`}
-                      </span>
-                    </p>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="flex flex-col gap-y-1">
-                      <span>
-                        Results are automatically limited to preserve browser performance, in
-                        particular if your query returns an exceptionally large number of rows.
-                      </span>
-
-                      <span className="text-foreground-light">
-                        You may change or remove this limit from the dropdown on the right
-                      </span>
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
+              <GridFooter className="h-full min-h-0 items-center justify-between gap-2 px-4">
+                <p className="flex items-center text-xs">
+                  {results.autoLimit !== undefined ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-foreground">
+                          {results.rows.length} row{results.rows.length > 1 ? 's' : ''}
+                          <span className="text-foreground-lighter ml-1">
+                            {` (Limited to only ${results.autoLimit} rows)`}
+                          </span>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="flex flex-col gap-y-1">
+                          <span>
+                            Results are limited to preserve browser performance when a query returns
+                            many rows.
+                          </span>
+                          <span className="text-foreground-light">
+                            Change or remove this limit from the dropdown on the right.
+                          </span>
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <span className="text-foreground">
+                      {results.rows.length} row{results.rows.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {resultWarehouseRouting !== 'postgres' &&
+                    resultWarehouseLagSeconds !== undefined && (
+                      <>
+                        <span className="text-foreground-lighter mx-1.5">·</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-foreground-lighter cursor-default">
+                              {getSqlWarehouseFooterLabel(
+                                resultWarehouseRouting,
+                                resultWarehouseLagSeconds
+                              )}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {SQL_WAREHOUSE_ROUTING_TOOLTIPS[resultWarehouseRouting]}
+                          </TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+                </p>
                 {results.autoLimit !== undefined && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

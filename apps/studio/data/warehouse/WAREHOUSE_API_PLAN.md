@@ -16,6 +16,9 @@ The Warehouse product reuses the existing replication/ETL machinery. Conceptuall
   project itself, plus a pipeline and a publication. Naming convention:
   - pipeline/destination name: `supabase_warehouse_pipeline`
   - publication name: `_supabase_warehouse_pub`
+  - warehouse table naming: each source table is exposed as `{source_schema}_warehouse.{table}`
+    (e.g. `public.orders` → `public_warehouse.orders`) to avoid clashes across schemas — this is the
+    `copy_name` returned below and the name users query in the SQL Editor.
   - ✅ **Already implemented — do not re-build:** the "max one DuckLake destination per project"
     rule is enforced by the platform in
     [supabase/platform#34718](https://github.com/supabase/platform/pull/34718). The warehouse
@@ -81,7 +84,7 @@ Response `200`:
       "state": "live", // 'syncing' | 'live' | 'error'  (derived from replication-status)
       "lag_ms": 12000, // optional
       "last_synced_at": "2026-06-23T17:48:00Z", // optional ISO-8601
-      "copy_name": "warehouse.orders",
+      "copy_name": "public_warehouse.orders", // {source_schema}_warehouse.{table}
       "warehouse_size_bytes": 197912092672, // optional
     },
   ],

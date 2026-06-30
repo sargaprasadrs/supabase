@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from 'ui'
 
+import { getWarehouseQualifiedTableName } from './warehouseNaming.utils'
 import { WarehouseProgressSteps } from './WarehouseProgressSteps'
 import { useWarehouseLinkTableMutation } from '@/data/warehouse/link-table-mutation'
 
@@ -36,7 +37,7 @@ export function WarehouseEnablementModal({
   const [progressIndex, setProgressIndex] = useState(0)
 
   const tableKey = `${schema}.${name}`
-  const warehouseCopyName = `warehouse.${name}`
+  const warehouseQualifiedName = getWarehouseQualifiedTableName(tableKey)
 
   const { mutate: linkTable, isPending: isRunning } = useWarehouseLinkTableMutation({
     onSuccess: () => {
@@ -78,8 +79,8 @@ export function WarehouseEnablementModal({
             <DialogSectionSeparator />
             <DialogSection className="flex flex-col gap-4">
               <p className="text-sm text-foreground-light">
-                The Postgres heap will remain the source of truth. Changes in Postgres will
-                continuously sync to a Warehouse copy.
+                The Postgres heap remains the source of truth for writes and the Table Editor. Query
+                the Warehouse copy explicitly for analytical workloads.
               </p>
 
               <div className="rounded-lg border bg-surface-75 text-sm">
@@ -92,7 +93,7 @@ export function WarehouseEnablementModal({
                     <span className="text-foreground-lighter">Warehouse</span>
                     <Badge variant="success">New</Badge>
                   </div>
-                  <code className="text-code-inline">{warehouseCopyName}</code>
+                  <code className="text-code-inline">{warehouseQualifiedName}</code>
                 </div>
               </div>
             </DialogSection>
