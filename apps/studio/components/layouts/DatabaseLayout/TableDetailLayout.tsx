@@ -243,6 +243,9 @@ export function TableDetailLayout({
                   {isLoading ? <ShimmeringLoader className="w-40" /> : (selectedTable?.name ?? '')}
                 </PageHeaderTitle>
                 {storageSyncError && <WarehouseSyncChip copyStatus="error" />}
+                {hasWarehouseStorage && warehouseState?.copyStatus === 'backfilling' && (
+                  <WarehouseSyncChip copyStatus="backfilling" />
+                )}
                 {isWarehouseDetailView && warehouseState?.copyStatus === 'live' && (
                   <WarehouseSyncChip copyStatus="live" />
                 )}

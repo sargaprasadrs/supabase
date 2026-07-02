@@ -358,6 +358,7 @@ export function WarehouseTableStoragePanel({
         <WarehouseEnablementModal
           open={true}
           tableKey={sourceTableKey}
+          sourceTableId={tableId}
           onOpenChange={(open) => {
             if (!open) setEnablementModalOpen(false)
           }}

@@ -30,6 +30,8 @@ export interface WarehouseTableState {
   lastSyncedAt?: string
   copyName?: string
   warehouseSizeBytes?: number
+  /** Postgres table OID — used for completion toast navigation. */
+  sourceTableId?: number
 }
 
 export const warehouseDemoStore = proxy<{
@@ -46,7 +48,7 @@ export const warehouseDemoStore = proxy<{
 })
 
 const DEMO_WAREHOUSE_SIZE_BYTES = 197_912_092_672 // ~184 GB
-const BACKFILLING_TRANSITION_MS = 4000
+const BACKFILLING_TRANSITION_MS = 8000
 
 const DEFAULT_WAREHOUSE_COPY_FIELDS = {
   copyStatus: 'live' as const,
@@ -116,7 +118,11 @@ export function resolveWarehouseTableState(
   }
 }
 
-export function setTableMode(key: string, mode: 'has_warehouse_copy'): void {
+export function setTableMode(
+  key: string,
+  mode: 'has_warehouse_copy',
+  options?: { sourceTableId?: number }
+): void {
   const now = new Date().toISOString()
   const isFirstLinkedTable = countLinkedWarehouseTablesInStore() === 0
 
@@ -128,6 +134,7 @@ export function setTableMode(key: string, mode: 'has_warehouse_copy'): void {
     copyStatus: 'backfilling',
     lastSyncedAt: now,
     copyName: getWarehouseQualifiedTableName(key),
+    ...(options?.sourceTableId !== undefined && { sourceTableId: options.sourceTableId }),
   }
 
   setTimeout(() => {

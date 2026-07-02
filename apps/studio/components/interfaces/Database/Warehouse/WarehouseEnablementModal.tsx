@@ -17,86 +17,73 @@ import {
 import { setTableMode, warehouseDemoStore } from './warehouseDemoStore'
 import { getWarehouseQualifiedTableName } from './warehouseNaming.utils'
 import { buildReplicationLogsUrl } from './warehouseObservability.utils'
-import { WarehouseProgressSteps } from './WarehouseProgressSteps'
 
 interface WarehouseEnablementModalProps {
   open: boolean
   tableKey: string
+  sourceTableId: number
   onOpenChange: (open: boolean) => void
 }
-
-const ATTACH_PROGRESS = ['Creating copy', 'Running initial sync']
 
 const SETUP_ERROR_MESSAGE =
   'Warehouse replication could not be enabled for this project. Your Postgres table was not changed.'
 
-const STEP_INTERVAL_MS = 1300
-// Beat after the last step checks off, so the completed state is visible.
-const COMPLETION_HOLD_MS = 650
+/** Simulates POST linked-table on staging platform API until Studio queries metadata. */
+const LINK_REQUEST_MS = 900
 
 export function WarehouseEnablementModal({
   open,
   tableKey,
+  sourceTableId,
   onOpenChange,
 }: WarehouseEnablementModalProps) {
   const { ref: projectRef } = useParams()
-  const [isRunning, setIsRunning] = useState(false)
-  const [progressIndex, setProgressIndex] = useState(0)
-  const [failedStepIndex, setFailedStepIndex] = useState<number | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const warehouseQualifiedName = getWarehouseQualifiedTableName(tableKey)
-  const showProgress = isRunning || failedStepIndex !== null
   const replicationLogsUrl =
     projectRef !== undefined ? buildReplicationLogsUrl(projectRef) : undefined
 
-  const resetProgress = () => {
-    setIsRunning(false)
-    setProgressIndex(0)
-    setFailedStepIndex(null)
-  }
-
   useEffect(() => {
     if (!open) {
-      resetProgress()
+      setIsSubmitting(false)
+      setSubmitError(null)
     }
   }, [open])
 
-  useEffect(() => {
-    if (!isRunning) return
+  const startCopy = async () => {
+    setIsSubmitting(true)
+    setSubmitError(null)
 
-    if (progressIndex > ATTACH_PROGRESS.length - 1) {
-      const timeout = setTimeout(() => {
-        setTableMode(tableKey, 'has_warehouse_copy')
-        toast.success('Warehouse copy started')
-        onOpenChange(false)
-      }, COMPLETION_HOLD_MS)
-      return () => clearTimeout(timeout)
+    try {
+      await new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+          if (warehouseDemoStore.simulateNextLinkFailure) {
+            warehouseDemoStore.simulateNextLinkFailure = false
+            reject(new Error('link_failed'))
+            return
+          }
+          resolve()
+        }, LINK_REQUEST_MS)
+      })
+
+      setTableMode(tableKey, 'has_warehouse_copy', { sourceTableId })
+      toast.success('Warehouse copy started')
+      onOpenChange(false)
+    } catch {
+      setSubmitError(SETUP_ERROR_MESSAGE)
+      toast.error('Failed to start Warehouse copy')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    if (progressIndex === ATTACH_PROGRESS.length - 1) {
-      const timeout = setTimeout(() => {
-        if (warehouseDemoStore.simulateNextLinkFailure) {
-          warehouseDemoStore.simulateNextLinkFailure = false
-          setFailedStepIndex(progressIndex)
-          setIsRunning(false)
-          toast.error('Failed to create Warehouse copy')
-          return
-        }
-
-        setProgressIndex((index) => index + 1)
-      }, STEP_INTERVAL_MS)
-      return () => clearTimeout(timeout)
-    }
-
-    const timeout = setTimeout(() => setProgressIndex((index) => index + 1), STEP_INTERVAL_MS)
-    return () => clearTimeout(timeout)
-  }, [isRunning, progressIndex, tableKey, onOpenChange])
+  }
 
   return (
     <Dialog
       open={open}
       onOpenChange={(val) => {
-        if (!val && !isRunning) onOpenChange(false)
+        if (!val && !isSubmitting) onOpenChange(false)
       }}
     >
       <DialogContent size="small">
@@ -104,81 +91,45 @@ export function WarehouseEnablementModal({
           <DialogTitle>Copy table to Warehouse</DialogTitle>
         </DialogHeader>
 
-        {showProgress ? (
-          <>
-            <DialogSection className="flex flex-col gap-3">
-              <WarehouseProgressSteps
-                steps={ATTACH_PROGRESS}
-                activeIndex={progressIndex}
-                failedIndex={failedStepIndex ?? undefined}
-              />
-              {failedStepIndex !== null && (
-                <p className="text-sm text-foreground-light">{SETUP_ERROR_MESSAGE}</p>
-              )}
-            </DialogSection>
-            {failedStepIndex !== null && (
-              <DialogFooter className="gap-2 sm:justify-between">
-                {replicationLogsUrl && (
-                  <Button variant="default" asChild className="mr-auto">
-                    <Link href={replicationLogsUrl}>View logs</Link>
-                  </Button>
-                )}
-                <div className="flex gap-2">
-                  <Button variant="default" onClick={() => onOpenChange(false)}>
-                    Close
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      resetProgress()
-                      setIsRunning(true)
-                    }}
-                  >
-                    Try again
-                  </Button>
-                </div>
-              </DialogFooter>
-            )}
-          </>
-        ) : (
-          <>
-            <DialogSectionSeparator />
-            <DialogSection className="flex flex-col gap-4">
-              <p className="text-sm text-foreground-light">
-                The Postgres heap will remain the source of truth. A Warehouse copy will be created
-                for analytical queries.
-              </p>
+        <DialogSectionSeparator />
+        <DialogSection className="flex flex-col gap-4">
+          <p className="text-sm text-foreground-light">
+            The Postgres heap will remain the source of truth. A Warehouse copy will be created for
+            analytical queries.
+          </p>
 
-              <div className="rounded-lg border bg-surface-75 text-sm">
-                <div className="flex items-center justify-between gap-4 px-4 py-2.5">
-                  <span className="text-foreground-lighter">Postgres</span>
-                  <code className="text-code-inline">{tableKey}</code>
-                </div>
-                <div className="flex items-center justify-between gap-4 border-t px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-foreground-lighter">Warehouse</span>
-                    <Badge variant="success">New</Badge>
-                  </div>
-                  <code className="text-code-inline">{warehouseQualifiedName}</code>
-                </div>
+          <div className="rounded-lg border bg-surface-75 text-sm">
+            <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+              <span className="text-foreground-lighter">Postgres</span>
+              <code className="text-code-inline">{tableKey}</code>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-t px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-foreground-lighter">Warehouse</span>
+                <Badge variant="success">New</Badge>
               </div>
-            </DialogSection>
-            <DialogFooter>
-              <Button variant="default" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setProgressIndex(0)
-                  setIsRunning(true)
-                }}
-              >
-                Create copy
-              </Button>
-            </DialogFooter>
-          </>
-        )}
+              <code className="text-code-inline">{warehouseQualifiedName}</code>
+            </div>
+          </div>
+
+          {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+        </DialogSection>
+
+        <DialogFooter className="gap-2 sm:justify-between">
+          {submitError && replicationLogsUrl && (
+            <Button variant="default" asChild className="mr-auto">
+              <Link href={replicationLogsUrl}>View logs</Link>
+            </Button>
+          )}
+          <div className="flex gap-2">
+            <Button variant="default" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" loading={isSubmitting} onClick={() => void startCopy()}>
+              Start copy
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

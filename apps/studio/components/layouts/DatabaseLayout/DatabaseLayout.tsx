@@ -3,6 +3,7 @@ import type { PropsWithChildren } from 'react'
 
 import { ProjectLayout } from '../ProjectLayout'
 import { useGenerateDatabaseMenu } from './DatabaseMenu.utils'
+import { useWarehouseCopyCompletionToast } from '@/components/interfaces/Database/Warehouse/useWarehouseCopyCompletionToast'
 import { ProductMenu } from '@/components/ui/ProductMenu'
 import { ProductMenuShortcuts } from '@/components/ui/ProductMenu/ProductMenuShortcuts'
 import { withAuth } from '@/hooks/misc/withAuth'
@@ -23,6 +24,8 @@ const DatabaseLayout = ({ children, title }: PropsWithChildren<DatabaseLayoutPro
   const router = useRouter()
   const page = router.pathname.split('/')[4]
   const menu = useGenerateDatabaseMenu()
+
+  useWarehouseCopyCompletionToast()
 
   return (
     <ProjectLayout

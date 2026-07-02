@@ -1,6 +1,6 @@
 # Warehouse table metadata API contract
 
-Prototype Studio code uses `?view=warehouse` on table detail URLs and `warehouseDemoStore` until the table metadata API exposes warehouse state. This document describes the target API shape.
+Prototype Studio code uses `?view=warehouse` on table detail URLs and `warehouseDemoStore` until table metadata queries return warehouse fields. Platform warehouse endpoints landed in [platform#34689](https://github.com/supabase/platform/pull/34689) (staging only); Studio is not wired to them yet.
 
 ## Goals
 
@@ -84,6 +84,28 @@ After API lands, `view=warehouse` becomes optional when the requested table OID 
 
 Detach (copy removed, postgres remains): `storage_mode` returns to `postgres`; warehouse schema row disappears from list.
 
+## Copy enable flow (Studio UX)
+
+Linking a table and backfilling it are **two phases**:
+
+| Phase           | User action       | API                                               | Studio                                                |
+| --------------- | ----------------- | ------------------------------------------------- | ----------------------------------------------------- |
+| **1. Link**     | Confirm in dialog | `POST` linked-table (accepts quickly)             | Button loading only; dialog closes on `2xx`           |
+| **2. Backfill** | (background)      | `warehouse_copy_status: 'backfilling'` → `'live'` | Sync status chip + Storage panel; poll table metadata |
+
+The dialog must **not** block until backfill completes. Failures during link return an error in the dialog; failures during backfill set `warehouse_copy_status: 'error'`.
+
+Optional future fields for richer progress (not required for MVP): `warehouse_backfill_rows_done`, `warehouse_backfill_rows_total`, or bytes copied.
+
+### Session notifications (MVP)
+
+| Event                                      | Toast                                                                                | Suppressed when                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Link accepted (copy started)               | `"Warehouse copy started"`                                                           | —                                                                                              |
+| Backfill complete (`backfilling` → `live`) | `"Warehouse copy is live"` + qualified name; action **View copy** → warehouse detail | User is on that table's **Settings** tab or **warehouse detail** view (status already visible) |
+
+Long-running work does not use a notifications inbox in MVP; in-session sonner toasts cover start and completion when the user is elsewhere in Studio.
+
 ## Demo store mapping (interim)
 
 | Demo store                                       | API equivalent                                 |
@@ -91,6 +113,7 @@ Detach (copy removed, postgres remains): `storage_mode` returns to `postgres`; w
 | `mode: 'postgres'`                               | `storage_mode: 'postgres'`                     |
 | `mode: 'has_warehouse_copy'`                     | `storage_mode: 'postgres_with_warehouse_copy'` |
 | `copyStatus: 'backfilling' \| 'live' \| 'error'` | `warehouse_copy_status`                        |
+| `sourceTableId`                                  | Postgres table OID (for completion toast CTA)  |
 | `projectReplication.replicationLagBytes`         | `replication_lag_bytes` (project)              |
 | `projectReplication.replicationPhase`            | `replication_phase` (project)                  |
 | (not implemented)                                | `storage_mode: 'warehouse_only'`               |
@@ -102,10 +125,10 @@ Remove `warehouseDemoStore` when list/detail queries return `WarehouseTableMetad
 
 Warehouse catalog credentials in the Connect sheet are isolated from Data API gating in `ConnectStepsSection`:
 
-| Surface | Mode | Disabled warning | Enable CTA |
-| ------- | ---- | ---------------- | ---------- |
-| `ConnectStepsSection` | `framework`, `server`, `mcp` | Data API off (PostgREST `db_schema` empty) | Data API settings |
-| `WarehouseCatalogPanel` | `catalog` | Catalog integration off | Warehouse catalog overview |
+| Surface                 | Mode                         | Disabled warning                           | Enable CTA                 |
+| ----------------------- | ---------------------------- | ------------------------------------------ | -------------------------- |
+| `ConnectStepsSection`   | `framework`, `server`, `mcp` | Data API off (PostgREST `db_schema` empty) | Data API settings          |
+| `WarehouseCatalogPanel` | `catalog`                    | Catalog integration off                    | Warehouse catalog overview |
 
 **Mode visibility:** `catalog` appears in the Connect mode selector only when at least one warehouse-linked table exists (`hasWarehouseTables()`). If the last linked table is removed while `catalog` is selected, Studio falls back to the first available connect mode.
 
