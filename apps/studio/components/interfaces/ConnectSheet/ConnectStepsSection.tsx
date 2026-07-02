@@ -26,7 +26,6 @@ import { useSupavisorConfigurationQuery } from '@/data/database/supavisor-config
 import { useProjectAddonsQuery } from '@/data/subscriptions/project-addons-query'
 import { useCheckEntitlements } from '@/hooks/misc/useCheckEntitlements'
 import { useDeploymentMode } from '@/hooks/misc/useDeploymentMode'
-import { useIsDataApiEnabled } from '@/hooks/misc/useIsDataApiEnabled'
 import { DOCS_URL } from '@/lib/constants'
 import { pluckObjectFields } from '@/lib/helpers'
 
@@ -197,33 +196,12 @@ export function ConnectStepsSection({ steps, state, projectKeys }: ConnectStepsS
 
   const showSelfHostedMcpNotice = deploymentMode.isSelfHosted && state.mode === 'mcp'
 
-  const { isEnabled: isDataApiEnabled } = useIsDataApiEnabled({ projectRef: ref })
-  const showDataApiDisabledNotice = state.mode === 'framework' && !isDataApiEnabled
-
   const customPrompt = useMemo(
     () => connectSchema.modes.find((m) => m.id === state.mode)?.prompt,
     [state.mode]
   )
 
   if (steps.length === 0) return null
-
-  if (showDataApiDisabledNotice) {
-    return (
-      <div className="bg-muted/50 flex-1 p-8">
-        <Admonition
-          type="warning"
-          layout="responsive"
-          title="Data API is disabled"
-          description="Enable the Data API to use client libraries."
-          actions={[
-            <Button asChild key="enable" variant="default">
-              <Link href={`/project/${ref}/integrations/data_api/settings`}>Enable Data API</Link>
-            </Button>,
-          ]}
-        />
-      </div>
-    )
-  }
 
   return (
     <div className="bg-muted/50 flex-1">
