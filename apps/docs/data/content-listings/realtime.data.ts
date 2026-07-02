@@ -45,6 +45,29 @@ export const realtimeExamples: ContentListingGroup = {
   ],
 }
 
+export const realtimeNextSteps: ContentListingGroup = {
+  id: 'realtime-next-steps',
+  heading: 'Next steps',
+  type: 'grid',
+  items: [
+    {
+      title: 'Broadcast',
+      href: '/guides/realtime/broadcast',
+      description: 'Send low-latency messages between connected clients.',
+    },
+    {
+      title: 'Presence',
+      href: '/guides/realtime/presence',
+      description: 'Track who is online and synchronize shared state across clients.',
+    },
+    {
+      title: 'Postgres Changes',
+      href: '/guides/realtime/postgres-changes',
+      description: 'Listen to database inserts, updates, and deletes in real time.',
+    },
+  ],
+}
+
 export const realtimeResources: ContentListingGroup = {
   id: 'realtime-resources',
   heading: 'Resources',

@@ -9,10 +9,21 @@ import {
   functionsExamplesSupabase,
   functionsExamplesWebhooksPayments,
   functionsGetStarted,
+  functionsNextSteps,
 } from './functions.data'
 import { gettingStartedGetStarted } from './getting-started.data'
-import { realtimeExamples, realtimeGetStarted, realtimeResources } from './realtime.data'
-import { storageExamples, storageGetStarted, storageResources } from './storage.data'
+import {
+  realtimeExamples,
+  realtimeGetStarted,
+  realtimeNextSteps,
+  realtimeResources,
+} from './realtime.data'
+import {
+  storageExamples,
+  storageGetStarted,
+  storageNextSteps,
+  storageResources,
+} from './storage.data'
 
 const ALL_GROUPS: readonly ContentListingGroup[] = [
   authGetStarted,
@@ -32,7 +43,10 @@ const ALL_GROUPS: readonly ContentListingGroup[] = [
   realtimeResources,
   storageGetStarted,
   storageExamples,
+  storageNextSteps,
   storageResources,
+  functionsNextSteps,
+  realtimeNextSteps,
 ]
 
 export const CONTENT_LISTINGS: Readonly<Record<string, ContentListingGroup>> = Object.fromEntries(

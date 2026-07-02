@@ -176,6 +176,29 @@ export const functionsExamplesMessaging: ContentListingGroup = {
   ],
 }
 
+export const functionsNextSteps: ContentListingGroup = {
+  id: 'functions-next-steps',
+  heading: 'Next steps',
+  type: 'grid',
+  items: [
+    {
+      title: 'Deploy',
+      href: '/guides/functions/deploy',
+      description: 'Deploy Edge Functions to production with the Supabase CLI or dashboard.',
+    },
+    {
+      title: 'Secrets',
+      href: '/guides/functions/secrets',
+      description: 'Store and access credentials and environment variables securely.',
+    },
+    {
+      title: 'Local development',
+      href: '/guides/functions/development-environment',
+      description: 'Set up a local runtime for testing and debugging Edge Functions.',
+    },
+  ],
+}
+
 export const functionsExamplesOperations: ContentListingGroup = {
   id: 'functions-examples-operations',
   heading: 'Operations & security',

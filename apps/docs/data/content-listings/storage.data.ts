@@ -50,6 +50,29 @@ export const storageExamples: ContentListingGroup = {
   ],
 }
 
+export const storageNextSteps: ContentListingGroup = {
+  id: 'storage-next-steps',
+  heading: 'Next steps',
+  type: 'grid',
+  items: [
+    {
+      title: 'Access control',
+      href: '/guides/storage/security/access-control',
+      description: 'Secure buckets and objects with row-level security policies.',
+    },
+    {
+      title: 'Image transformations',
+      href: '/guides/storage/serving/image-transformations',
+      description: 'Resize, compress, and convert images on the fly at the CDN edge.',
+    },
+    {
+      title: 'CDN',
+      href: '/guides/storage/cdn/fundamentals',
+      description: 'Understand how the global CDN caches and delivers your assets.',
+    },
+  ],
+}
+
 export const storageResources: ContentListingGroup = {
   id: 'storage-resources',
   heading: 'Resources',
