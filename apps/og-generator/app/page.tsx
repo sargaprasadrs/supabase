@@ -10,6 +10,7 @@ import { contrastRatio, rating } from '@/lib/design/contrast'
 import { DEFAULT_FORMAT_ID, FORMAT_OPTIONS, getFormat, type FormatId } from '@/lib/design/formats'
 import { DEFAULT_TEMPLATE_ID, TEMPLATES } from '@/lib/design/templates'
 import { typography } from '@/lib/design/tokens'
+import { IN_CONTEXT_OPTS, InContextPreview, type InContextMode } from './InContextPreview'
 
 /**
  * Editor. State maps 1:1 to /api/og query params (the stateless recipe, §6.9).
@@ -412,6 +413,7 @@ export default function Page() {
   const [scale, setScale] = useState<1 | 2>(1)
   const [showSafeArea, setShowSafeArea] = useState(false)
   const [showCrops, setShowCrops] = useState(false)
+  const [inContext, setInContext] = useState<InContextMode>('none')
 
   const [patternType, setPatternType] = useState<PatternTypeOpt>(
     DEFAULT_TPL.defaultPattern.type as PatternTypeOpt
@@ -650,6 +652,13 @@ export default function Page() {
                     )}
                   </div>
                 </PreviewCard>
+                <InContextPreview
+                  mode={inContext}
+                  imgUrl={og.url}
+                  headline={headline}
+                  eyebrow={eyebrow.trim() || null}
+                  aspect={`${format.width} / ${format.height}`}
+                />
               </div>
             )}
 
@@ -1144,6 +1153,15 @@ export default function Page() {
               Show platform crops
               <Hint text="Preview how X, LinkedIn, Facebook, Slack and chat apps crop & round the 1200×630 (§11.1)." />
             </label>
+            {showOg && (
+              <div className="flex flex-col gap-2 pt-1">
+                <span className="text-sm font-medium text-foreground-light">
+                  View in context
+                  <Hint text="See the image as it'd actually appear — a Twitter/LinkedIn post mockup, or a card in the supabase.com blog listing — not just a cropped rectangle." />
+                </span>
+                <Segmented value={inContext} onChange={setInContext} options={IN_CONTEXT_OPTS} />
+              </div>
+            )}
           </Group>
         </div>
       </aside>
