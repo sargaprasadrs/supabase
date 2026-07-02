@@ -1,22 +1,25 @@
 import type { SeedIcon } from '@/lib/assets/seed-icons'
-import { strokeWidthRange } from '@/lib/design/tokens'
 
 /**
  * Icon rendering + stroke-width normalization (brief §4 / §6).
  *
- * Brand rule: minimal line-art with stroke width strictly 1.22–1.88px. We treat
- * that as the stroke as it appears IN THE FINAL IMAGE — so regardless of an
- * icon's source artboard, we set the SVG's stroke-width in user units such that,
- * scaled to the requested display size, the rendered stroke lands in range. This
- * is the runtime side of the §6 "auto-normalize stroke-width on import" rule;
- * the upload pipeline will apply the same clamp to stored assets later.
+ * Brand rule: minimal line-art with a locked stroke width (range is
+ * brand-specific — see lib/design/brands/). We treat that as the stroke as it
+ * appears IN THE FINAL IMAGE — so regardless of an icon's source artboard, we
+ * set the SVG's stroke-width in user units such that, scaled to the requested
+ * display size, the rendered stroke lands in range. This is the runtime side
+ * of the §6 "auto-normalize stroke-width on import" rule; the upload pipeline
+ * will apply the same clamp to stored assets later.
  */
 
-const MID_STROKE = (strokeWidthRange.min + strokeWidthRange.max) / 2
+// Safe fallback only — every real caller passes `strokePx` explicitly (see
+// route.tsx), so this never actually renders; kept as a sane universal
+// midpoint rather than threading a brand through a pure rendering-math module.
+const FALLBACK_STROKE_PX = 1.6
 
-/** Clamp a desired stroke (px, in the final image) into the locked brand range. */
-export function normalizeStrokePx(px: number): number {
-  return Math.min(strokeWidthRange.max, Math.max(strokeWidthRange.min, px))
+/** Clamp a desired stroke (px, in the final image) into a brand's locked range. */
+export function normalizeStrokePx(px: number, range: { min: number; max: number }): number {
+  return Math.min(range.max, Math.max(range.min, px))
 }
 
 interface IconRenderOptions {
@@ -30,7 +33,7 @@ interface IconRenderOptions {
 
 /** Build a normalized, self-contained SVG string for a seed icon. */
 export function iconSvg(icon: SeedIcon, opts: IconRenderOptions): string {
-  const strokePx = opts.strokePx ?? MID_STROKE
+  const strokePx = opts.strokePx ?? FALLBACK_STROKE_PX
   const viewBoxSize = Number(icon.viewBox.split(/\s+/)[2]) || 24
   // user-space stroke so that, scaled to sizePx, the rendered stroke == strokePx
   const strokeWidth = (strokePx * viewBoxSize) / opts.sizePx

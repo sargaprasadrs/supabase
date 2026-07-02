@@ -5,9 +5,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Suggestion } from '@/lib/ai/suggest'
 import { ICON_LIBRARY } from '@/lib/assets/icon-library'
 import { type SeedIcon } from '@/lib/assets/seed-icons'
+import { BRAND_OPTIONS, DEFAULT_BRAND_ID, color, getBrand, type BrandId } from '@/lib/design/brands'
 import { contrastRatio, rating } from '@/lib/design/contrast'
+import { DEFAULT_FORMAT_ID, FORMAT_OPTIONS, getFormat, type FormatId } from '@/lib/design/formats'
 import { DEFAULT_TEMPLATE_ID, TEMPLATES } from '@/lib/design/templates'
-import { color, typography } from '@/lib/design/tokens'
+import { typography } from '@/lib/design/tokens'
 
 /**
  * Editor. State maps 1:1 to /api/og query params (the stateless recipe, §6.9).
@@ -23,8 +25,13 @@ const THUMB_MAX = 480
 const OPACITY_MIN = 0.2
 const OPACITY_MAX = 0.35
 
-const OUTER = { x: (64 / 1200) * 100, y: (64 / 630) * 100 }
-const HEADLINE_INSET = { x: (80 / 1200) * 100, y: (72 / 630) * 100 }
+/** Safe-area guide insets as % of the canvas, for a given format. */
+function outerInset(width: number, height: number) {
+  return { x: (64 / width) * 100, y: (64 / height) * 100 }
+}
+function headlineInsetPct(width: number, height: number) {
+  return { x: (80 / width) * 100, y: (72 / height) * 100 }
+}
 
 type View = 'og' | 'thumb' | 'both'
 type PatternTypeOpt = 'none' | 'dots' | 'grid' | 'hlines' | 'vlines'
@@ -180,6 +187,8 @@ function useRenderedImage(endpoint: string, enabled: boolean) {
 
 function PreviewCard({
   label,
+  width,
+  height,
   imgUrl,
   loading,
   error,
@@ -193,6 +202,8 @@ function PreviewCard({
   children,
 }: {
   label: string
+  width: number
+  height: number
   imgUrl: string | null
   loading: boolean
   error: string | null
@@ -205,13 +216,16 @@ function PreviewCard({
   onDownload: () => void
   children?: React.ReactNode
 }) {
+  const outer = outerInset(width, height)
+  const headlineInset = headlineInsetPct(width, height)
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-foreground-light">
           {label}
           <span className="ml-2 font-normal text-foreground-lighter">
-            1200 × 630{loading ? ' · rendering…' : ''}
+            {width} × {height}
+            {loading ? ' · rendering…' : ''}
           </span>
         </span>
         <div className="flex gap-2">
@@ -233,7 +247,7 @@ function PreviewCard({
 
       <div
         className="relative w-full overflow-hidden rounded-lg border border-default bg-surface-100"
-        style={{ aspectRatio: '1200 / 630' }}
+        style={{ aspectRatio: `${width} / ${height}` }}
       >
         {imgUrl && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -243,16 +257,16 @@ function PreviewCard({
           <div className="pointer-events-none absolute inset-0">
             <div
               className="absolute border border-dashed border-brand/40"
-              style={{ top: `${OUTER.y}%`, bottom: `${OUTER.y}%`, left: `${OUTER.x}%`, right: `${OUTER.x}%` }}
+              style={{ top: `${outer.y}%`, bottom: `${outer.y}%`, left: `${outer.x}%`, right: `${outer.x}%` }}
             />
             {showHeadlineInset && (
               <div
                 className="absolute border border-dashed border-warning/50"
                 style={{
-                  top: `${HEADLINE_INSET.y}%`,
-                  bottom: `${HEADLINE_INSET.y}%`,
-                  left: `${HEADLINE_INSET.x}%`,
-                  right: `${HEADLINE_INSET.x}%`,
+                  top: `${headlineInset.y}%`,
+                  bottom: `${headlineInset.y}%`,
+                  left: `${headlineInset.x}%`,
+                  right: `${headlineInset.x}%`,
                 }}
               />
             )}
@@ -295,6 +309,12 @@ function PreviewCard({
 }
 
 export default function Page() {
+  const [brandId, setBrandId] = useState<BrandId>(DEFAULT_BRAND_ID)
+  const [formatId, setFormatId] = useState<FormatId>(DEFAULT_FORMAT_ID)
+  const brand = useMemo(() => getBrand(brandId), [brandId])
+  const format = useMemo(() => getFormat(formatId), [formatId])
+  const hasThumb = !!format.thumb
+
   const [view, setView] = useState<View>('both')
   const [aiDescription, setAiDescription] = useState('')
   const [headline, setHeadline] = useState('Postgres full text search just got faster')
@@ -310,13 +330,19 @@ export default function Page() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const allIcons = useMemo(() => [...ICON_LIBRARY, ...uploadedIcons], [uploadedIcons])
 
-  // Load the shared asset library (uploaded icons); empty when Supabase is off.
+  // Load the shared asset library (uploaded icons) for the active brand; empty
+  // when Supabase is off.
   useEffect(() => {
-    fetch('/api/assets')
+    fetch(`/api/assets?brand=${brandId}`)
       .then((r) => r.json())
       .then((d) => setUploadedIcons(d.assets ?? []))
       .catch(() => {})
-  }, [])
+  }, [brandId])
+
+  // Format may drop the Thumb view (e.g. Twitter) — fall back to OG.
+  useEffect(() => {
+    if (!hasThumb && view === 'thumb') setView('og')
+  }, [hasThumb, view])
 
   const uploadSvg = async (file: File) => {
     setUploading(true)
@@ -324,6 +350,7 @@ export default function Page() {
     try {
       const fd = new FormData()
       fd.append('file', file)
+      fd.append('brand', brandId)
       const res = await fetch('/api/assets', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) {
@@ -364,6 +391,7 @@ export default function Page() {
       const fd = new FormData()
       fd.append('file', file)
       fd.append('kind', 'logo')
+      fd.append('brand', brandId)
       fd.append('width', String(width))
       fd.append('height', String(height))
       const res = await fetch('/api/assets', { method: 'POST', body: fd })
@@ -410,6 +438,8 @@ export default function Page() {
 
   const ogEndpoint = useMemo(() => {
     const p = new URLSearchParams()
+    if (brandId !== DEFAULT_BRAND_ID) p.set('brand', brandId)
+    if (formatId !== DEFAULT_FORMAT_ID) p.set('format', formatId)
     p.set('headline', headline)
     if (eyebrow.trim()) {
       p.set('eyebrow', eyebrow.trim())
@@ -423,10 +453,12 @@ export default function Page() {
     if (scale === 2) p.set('scale', '2')
     return `/api/og?${p.toString()}`
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [headline, eyebrow, eyebrowStyle, sentenceCase, template, autoFit, manualFontSize, icon, scale, patternType, patternScale, patternColor, patternOpacity])
+  }, [brandId, formatId, headline, eyebrow, eyebrowStyle, sentenceCase, template, autoFit, manualFontSize, icon, scale, patternType, patternScale, patternColor, patternOpacity])
 
   const thumbEndpoint = useMemo(() => {
     const p = new URLSearchParams()
+    if (brandId !== DEFAULT_BRAND_ID) p.set('brand', brandId)
+    if (formatId !== DEFAULT_FORMAT_ID) p.set('format', formatId)
     p.set('type', 'thumb')
     if (icon) p.set('icon', icon)
     p.set('thumbSize', String(thumbSize))
@@ -434,7 +466,7 @@ export default function Page() {
     if (scale === 2) p.set('scale', '2')
     return `/api/og?${p.toString()}`
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [icon, thumbSize, scale, patternType, patternScale, patternColor, patternOpacity])
+  }, [brandId, formatId, icon, thumbSize, scale, patternType, patternScale, patternColor, patternOpacity])
 
   const og = useRenderedImage(ogEndpoint, showOg)
   const thumb = useRenderedImage(thumbEndpoint, showThumb)
@@ -520,7 +552,7 @@ export default function Page() {
         ? 'text-warning-600'
         : 'text-foreground-lighter'
 
-  const headlineContrast = contrastRatio(color('text.primary'), color('bg.primary'))
+  const headlineContrast = contrastRatio(color('text.primary', brand), color('bg.primary', brand))
   const headlineRating = rating(headlineContrast, true)
 
   const copyUrl = async (endpoint: string, key: View) => {
@@ -555,7 +587,11 @@ export default function Page() {
       >
         {/* view toggle — stays pinned near the top */}
         <div className="mb-5 flex w-full items-center justify-center">
-          <Segmented value={view} onChange={setView} options={VIEW_OPTS} />
+          <Segmented
+            value={view}
+            onChange={setView}
+            options={hasThumb ? VIEW_OPTS : VIEW_OPTS.filter((o) => o.value !== 'thumb')}
+          />
         </div>
 
         {/* Fills the remaining canvas height; on wide/side-by-side screens the
@@ -570,7 +606,9 @@ export default function Page() {
             {showOg && (
               <div className="min-w-0 @4xl:flex-1">
                 <PreviewCard
-                  label="OG"
+                  label={format.label}
+                  width={format.width}
+                  height={format.height}
                   imgUrl={og.url}
                   loading={og.loading}
                   error={og.error}
@@ -619,6 +657,8 @@ export default function Page() {
               <div className="min-w-0 @4xl:flex-1">
                 <PreviewCard
                   label="Thumb"
+                  width={format.width}
+                  height={format.height}
                   imgUrl={thumb.url}
                   loading={thumb.loading}
                   error={thumb.error}
@@ -664,6 +704,39 @@ export default function Page() {
           </label>
         </div>
         <div className="flex flex-col overflow-y-auto overflow-x-hidden p-5">
+          <Group title="Brand & format">
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-foreground-light">Brand</span>
+              <select
+                id="brand"
+                value={brandId}
+                onChange={(e) => setBrandId(e.target.value as BrandId)}
+                className="rounded-md border border-default bg-surface-100 px-3 py-2 text-sm text-foreground outline-none focus:border-strong"
+              >
+                {BRAND_OPTIONS.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-foreground-light">Format</span>
+              <select
+                id="format"
+                value={formatId}
+                onChange={(e) => setFormatId(e.target.value as FormatId)}
+                className="rounded-md border border-default bg-surface-100 px-3 py-2 text-sm text-foreground outline-none focus:border-strong"
+              >
+                {FORMAT_OPTIONS.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </Group>
+
           {showOg && (
             <Group title="AI art direction">
               <div className="flex flex-col gap-2">

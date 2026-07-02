@@ -1,7 +1,9 @@
 import { ImageResponse } from 'next/og'
 
 import { resolveIcon } from '@/lib/supabase/assets'
+import { getBrand, color } from '@/lib/design/brands'
 import { satoriFonts, measurementFont } from '@/lib/design/fonts'
+import { getFormat } from '@/lib/design/formats'
 import { iconDataUri } from '@/lib/design/icons'
 import {
   PATTERN_SCALE_PX,
@@ -17,7 +19,7 @@ import {
   TEMPLATE_MAP,
   type TemplateDefaultPattern,
 } from '@/lib/design/templates'
-import { canvas, color, illustration, typography } from '@/lib/design/tokens'
+import { typography } from '@/lib/design/tokens'
 import { fitHeadline } from '@/lib/text/fit-headline'
 import { toSentenceCase } from '@/lib/text/sentence-case'
 
@@ -31,18 +33,12 @@ const DEFAULT_HEADLINE = 'Postgres full text search just got faster'
 const HEADLINE = typography.roles.headline
 const EYEBROW = typography.roles.eyebrow
 
-const ICON_SIZE = 220 // OG icon size (1x design px)
-const ICON_STROKE = illustration.defaultStrokePx
-
 /** Scale (naturalW, naturalH) to fit within a boxSize square, preserving aspect ratio. */
 function fitBox(naturalW: number, naturalH: number, boxSize: number): { width: number; height: number } {
   const ratio = naturalW / naturalH || 1
   return ratio >= 1 ? { width: boxSize, height: boxSize / ratio } : { width: boxSize * ratio, height: boxSize }
 }
 
-const THUMB_ICON_DEFAULT = 380
-const THUMB_ICON_MIN = 160
-const THUMB_ICON_MAX = 480
 const THUMB_PATTERN_FALLBACK: TemplateDefaultPattern = {
   type: 'none',
   scale: 'md',
@@ -63,17 +59,21 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
 
+    const brand = getBrand(searchParams.get('brand'))
+    const format = getFormat(searchParams.get('format'))
+    const ICON_STROKE = brand.illustration.defaultStrokePx
+
     const scale = searchParams.get('scale') === '2' ? 2 : 1
     const s = scale
-    const W = canvas.width * s
-    const H = canvas.height * s
-    const padX = canvas.headlineInset.x * s
-    const padY = canvas.headlineInset.y * s
-    const bg = color('bg.primary')
+    const W = format.width * s
+    const H = format.height * s
+    const padX = format.headlineInset.x * s
+    const padY = format.headlineInset.y * s
+    const bg = color('bg.primary', brand)
 
     const iconName = searchParams.get('icon')
     // Seed icons first, then uploaded assets from Supabase (brief §6).
-    const iconObj = iconName ? await resolveIcon(iconName) : null
+    const iconObj = iconName ? await resolveIcon(iconName, brand.id) : null
     const type = searchParams.get('type') === 'thumb' ? 'thumb' : 'og'
 
     // Resolve the background pattern from query params, falling back to a default
@@ -107,10 +107,11 @@ export async function GET(req: Request) {
 
     // ---- Thumb variant: same canvas + icon system, no text layer (brief §3) -
     if (type === 'thumb') {
+      const thumb = format.thumb ?? { default: 380, min: 160, max: 480 }
       const thumbNum = Number(searchParams.get('thumbSize'))
       const thumbSize = Number.isFinite(thumbNum)
-        ? Math.min(THUMB_ICON_MAX, Math.max(THUMB_ICON_MIN, Math.round(thumbNum)))
-        : THUMB_ICON_DEFAULT
+        ? Math.min(thumb.max, Math.max(thumb.min, Math.round(thumbNum)))
+        : thumb.default
       const cfg = resolvePattern(THUMB_PATTERN_FALLBACK)
 
       const thumbRoot = (
@@ -142,7 +143,7 @@ export async function GET(req: Request) {
               src={iconDataUri(iconObj, {
                 sizePx: thumbSize * s,
                 strokePx: ICON_STROKE * s,
-                color: color('illustration.stroke'),
+                color: color('illustration.stroke', brand),
               })}
             />
           ) : null}
@@ -184,7 +185,7 @@ export async function GET(req: Request) {
 
     const headlineFont = await measurementFont(HEADLINE.weight)
     const fit = fitHeadline(headline, headlineFont, {
-      boxWidth: template.headlineBox,
+      boxWidth: template.headlineBox(format),
       minSize: manualSize ?? HEADLINE.minSize,
       maxSize: manualSize ?? HEADLINE.maxSize,
       step: 2,
@@ -215,14 +216,14 @@ export async function GET(req: Request) {
             style={{
               display: 'flex',
               marginBottom: eyebrowGap,
-              color: color('brand.default'),
+              color: color('brand.default', brand),
               fontSize: eyebrowSize,
               fontWeight: EYEBROW.weight,
               letterSpacing: eyebrowLetterSpacing,
               textTransform: 'uppercase',
               ...(eyebrowPill
                 ? {
-                    backgroundColor: color('brand.tint'),
+                    backgroundColor: color('brand.tint', brand),
                     borderRadius: 999,
                     padding: `${8 * s}px ${18 * s}px`,
                   }
@@ -245,7 +246,7 @@ export async function GET(req: Request) {
               style={{
                 display: 'flex',
                 whiteSpace: 'nowrap', // render exactly the line we computed
-                color: color('text.primary'),
+                color: color('text.primary', brand),
                 fontSize: headlineSize,
                 fontWeight: HEADLINE.weight,
                 lineHeight: `${headlineLineHeight}px`,
@@ -263,16 +264,16 @@ export async function GET(req: Request) {
       iconObj && iconObj.kind === 'logo' && iconObj.url ? (
         // Custom color logo — rendered as-is, fit to its natural aspect ratio.
         // eslint-disable-next-line @next/next/no-img-element
-        <img {...fitBox(iconObj.width ?? 1, iconObj.height ?? 1, ICON_SIZE * s)} src={iconObj.url} />
+        <img {...fitBox(iconObj.width ?? 1, iconObj.height ?? 1, format.iconSize * s)} src={iconObj.url} />
       ) : iconObj ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          width={ICON_SIZE * s}
-          height={ICON_SIZE * s}
+          width={format.iconSize * s}
+          height={format.iconSize * s}
           src={iconDataUri(iconObj, {
-            sizePx: ICON_SIZE * s,
+            sizePx: format.iconSize * s,
             strokePx: ICON_STROKE * s,
-            color: color('illustration.stroke'),
+            color: color('illustration.stroke', brand),
           })}
         />
       ) : null

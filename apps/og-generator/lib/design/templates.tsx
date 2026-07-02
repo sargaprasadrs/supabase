@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactElement, ReactNode } from 'react'
 
+import type { Format } from '@/lib/design/formats'
+import { fullHeadlineBoxWidth } from '@/lib/design/formats'
 import type { PatternColor, PatternScale, PatternType } from '@/lib/design/patterns'
 
 /**
@@ -36,8 +38,8 @@ export interface TemplateParts {
 export interface Template {
   id: string
   label: string
-  /** Headline text-box width (1x px) the auto-fit measures against. */
-  headlineBox: number
+  /** Headline text-box width (1x px) the auto-fit measures against, for a given format. */
+  headlineBox: (format: Format) => number
   textAlign: 'left' | 'center'
   /** Where the content sits — used to grid-snap the background to it (§4). */
   anchorX: 'left' | 'center'
@@ -46,7 +48,8 @@ export interface Template {
   build: (p: TemplateParts) => ReactElement
 }
 
-const FULL_BOX = 1200 - 80 * 2 // 1040 — headline inset both sides
+// Gap (1x px) between the headline and the icon column in split-right.
+const SPLIT_RIGHT_GAP = 56
 
 function rootBase(p: TemplateParts): CSSProperties {
   return {
@@ -64,7 +67,7 @@ export const TEMPLATES: Template[] = [
   {
     id: 'bottom-left',
     label: 'Headline bottom-left',
-    headlineBox: FULL_BOX,
+    headlineBox: fullHeadlineBoxWidth,
     textAlign: 'left',
     anchorX: 'left',
     anchorY: 'bottom',
@@ -91,7 +94,8 @@ export const TEMPLATES: Template[] = [
   {
     id: 'split-right',
     label: 'Headline left, icon right',
-    headlineBox: 1200 - 80 * 2 - 220 - 56, // 764 — leaves room for the icon column
+    // Leaves room for the icon column (764 at the OG/Twitter format's 1200 width).
+    headlineBox: (format) => fullHeadlineBoxWidth(format) - format.iconSize - SPLIT_RIGHT_GAP,
     textAlign: 'left',
     anchorX: 'left',
     anchorY: 'center',
@@ -115,7 +119,9 @@ export const TEMPLATES: Template[] = [
   {
     id: 'centered',
     label: 'Centered',
-    headlineBox: 900,
+    // 75% of the format width (900 at the OG/Twitter format's 1200 width) —
+    // deliberately narrower than the full inset box for shorter, balanced lines.
+    headlineBox: (format) => Math.round(format.width * 0.75),
     textAlign: 'center',
     anchorX: 'center',
     anchorY: 'center',
@@ -141,7 +147,7 @@ export const TEMPLATES: Template[] = [
   {
     id: 'stacked',
     label: 'Headline top, icon bottom',
-    headlineBox: FULL_BOX,
+    headlineBox: fullHeadlineBoxWidth,
     textAlign: 'left',
     anchorX: 'left',
     anchorY: 'top',

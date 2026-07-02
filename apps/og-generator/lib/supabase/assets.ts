@@ -31,6 +31,7 @@ interface AssetRow {
   storage_path: string | null
   width: number | null
   height: number | null
+  brand?: string | null
 }
 
 /** Public URL for a Storage object, without an extra network round-trip. */
@@ -54,16 +55,17 @@ function rowToIcon(r: AssetRow): SeedIcon {
   }
 }
 
-const COLUMNS = 'name,label,tags,kind,view_box,body,storage_path,width,height'
+const COLUMNS = 'name,label,tags,kind,view_box,body,storage_path,width,height,brand'
 
-/** Uploaded assets, newest first. Returns [] when unconfigured or on error. */
-export async function listAssets(): Promise<SeedIcon[]> {
+/** Uploaded assets for a brand, newest first. Returns [] when unconfigured or on error. */
+export async function listAssets(brand: string): Promise<SeedIcon[]> {
   const supabase = getSupabase()
   if (!supabase) return []
   try {
     const { data, error } = await supabase
       .from('assets')
       .select(COLUMNS)
+      .eq('brand', brand)
       .order('created_at', { ascending: false })
     if (error || !data) return []
     return (data as AssetRow[]).filter((r) => r.body || r.storage_path).map(rowToIcon)
@@ -72,13 +74,21 @@ export async function listAssets(): Promise<SeedIcon[]> {
   }
 }
 
-/** Resolve an icon/logo by name: bundled seed first, then an uploaded asset. */
-export async function resolveIcon(name: string): Promise<SeedIcon | null> {
+/**
+ * Resolve an icon/logo by name: bundled seed first (brand-agnostic), then an
+ * uploaded asset scoped to `brand`.
+ */
+export async function resolveIcon(name: string, brand: string): Promise<SeedIcon | null> {
   if (ICON_MAP[name]) return ICON_MAP[name]
   const supabase = getSupabase()
   if (!supabase) return null
   try {
-    const { data, error } = await supabase.from('assets').select(COLUMNS).eq('name', name).maybeSingle()
+    const { data, error } = await supabase
+      .from('assets')
+      .select(COLUMNS)
+      .eq('name', name)
+      .eq('brand', brand)
+      .maybeSingle()
     if (error || !data) return null
     const row = data as AssetRow
     if (!row.body && !row.storage_path) return null
@@ -94,6 +104,7 @@ export interface NewAsset {
   tags: string[]
   viewBox: string
   body: string
+  brand: string
 }
 
 /** Insert an uploaded line icon (admin/secret key). Throws 'NO_ADMIN' if unconfigured. */
@@ -102,7 +113,15 @@ export async function insertAsset(a: NewAsset): Promise<SeedIcon> {
   if (!admin) throw new Error('NO_ADMIN')
   const { data, error } = await admin
     .from('assets')
-    .insert({ name: a.name, label: a.label, tags: a.tags, view_box: a.viewBox, body: a.body, kind: 'icon' })
+    .insert({
+      name: a.name,
+      label: a.label,
+      tags: a.tags,
+      view_box: a.viewBox,
+      body: a.body,
+      kind: 'icon',
+      brand: a.brand,
+    })
     .select(COLUMNS)
     .single()
   if (error || !data) throw new Error(error?.message ?? 'insert failed')
@@ -121,6 +140,7 @@ export interface NewLogo {
   /** Natural pixel size, measured client-side before upload. */
   width: number
   height: number
+  brand: string
 }
 
 /**
@@ -149,6 +169,7 @@ export async function insertLogoAsset(a: NewLogo): Promise<SeedIcon> {
       storage_path: path,
       width: a.width,
       height: a.height,
+      brand: a.brand,
     })
     .select(COLUMNS)
     .single()

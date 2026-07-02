@@ -1,13 +1,15 @@
 import { sanitizeLogoSvg, sanitizeSvg } from '@/lib/assets/sanitize-svg'
+import { DEFAULT_BRAND_ID } from '@/lib/design/brands'
 import { insertAsset, insertLogoAsset, listAssets } from '@/lib/supabase/assets'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
 
 // Node runtime — uses the Supabase server clients + parses uploaded files.
 export const runtime = 'nodejs'
 
-/** GET → the uploaded asset library (public read; [] when unconfigured). */
-export async function GET(): Promise<Response> {
-  return Response.json({ assets: await listAssets() })
+/** GET → the uploaded asset library for a brand (public read; [] when unconfigured). */
+export async function GET(req: Request): Promise<Response> {
+  const brand = new URL(req.url).searchParams.get('brand') || DEFAULT_BRAND_ID
+  return Response.json({ assets: await listAssets(brand) })
 }
 
 function slugify(s: string): string {
@@ -58,10 +60,11 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const kind = form.get('kind') === 'logo' ? 'logo' : 'icon'
-  return kind === 'logo' ? handleLogoUpload(form) : handleIconUpload(form)
+  const brand = typeof form.get('brand') === 'string' ? (form.get('brand') as string) : DEFAULT_BRAND_ID
+  return kind === 'logo' ? handleLogoUpload(form, brand) : handleIconUpload(form, brand)
 }
 
-async function handleIconUpload(form: FormData): Promise<Response> {
+async function handleIconUpload(form: FormData, brand: string): Promise<Response> {
   const file = form.get('file')
   let label = typeof form.get('label') === 'string' ? (form.get('label') as string) : ''
 
@@ -87,7 +90,14 @@ async function handleIconUpload(form: FormData): Promise<Response> {
   const tags = Array.from(new Set(slugify(displayLabel).split('-').filter((w) => w.length > 1)))
 
   try {
-    const asset = await insertAsset({ name, label: displayLabel, tags, viewBox: clean.viewBox, body: clean.body })
+    const asset = await insertAsset({
+      name,
+      label: displayLabel,
+      tags,
+      viewBox: clean.viewBox,
+      body: clean.body,
+      brand,
+    })
     return Response.json({ asset })
   } catch (err) {
     console.error('[api/assets] icon insert failed:', err)
@@ -95,7 +105,7 @@ async function handleIconUpload(form: FormData): Promise<Response> {
   }
 }
 
-async function handleLogoUpload(form: FormData): Promise<Response> {
+async function handleLogoUpload(form: FormData, brand: string): Promise<Response> {
   const file = form.get('file')
   let label = typeof form.get('label') === 'string' ? (form.get('label') as string) : ''
   const width = Number(form.get('width'))
@@ -153,6 +163,7 @@ async function handleLogoUpload(form: FormData): Promise<Response> {
       ext,
       width: Math.round(width),
       height: Math.round(height),
+      brand,
     })
     return Response.json({ asset })
   } catch (err) {
