@@ -157,21 +157,30 @@ export const DestinationForm = ({
         }
 
         if (selectedType === 'BigQuery') {
-          getBigQueryValidationIssues(data).forEach(({ path, message }) => {
-            addRequiredFieldError(path, message)
-          })
+          getBigQueryValidationIssues(data, { secretsOptional: editMode }).forEach(
+            ({ path, message }) => {
+              addRequiredFieldError(path, message)
+            }
+          )
         } else if (selectedType === 'Analytics Bucket') {
-          getAnalyticsBucketValidationIssues(data).forEach(({ path, message }) => {
+          getAnalyticsBucketValidationIssues(data, {
+            secretsOptional: editMode,
+            storedS3AccessKeyId: editMode ? defaultValues.s3AccessKeyId : undefined,
+          }).forEach(({ path, message }) => {
             addRequiredFieldError(path, message)
           })
         } else if (selectedType === 'DuckLake') {
-          getDucklakeValidationIssues(data).forEach(({ path, message }) => {
-            addRequiredFieldError(path, message)
-          })
+          getDucklakeValidationIssues(data, { secretsOptional: editMode }).forEach(
+            ({ path, message }) => {
+              addRequiredFieldError(path, message)
+            }
+          )
         } else if (selectedType === 'Snowflake') {
-          getSnowflakeValidationIssues(data).forEach(({ path, message }) => {
-            addRequiredFieldError(path, message)
-          })
+          getSnowflakeValidationIssues(data, { secretsOptional: editMode }).forEach(
+            ({ path, message }) => {
+              addRequiredFieldError(path, message)
+            }
+          )
         }
       })
     ),
@@ -193,13 +202,15 @@ export const DestinationForm = ({
 
   const getSubmitButtonText = () => {
     if (editMode) {
-      return existingDestination?.enabled ? 'Apply and restart' : 'Apply and start'
+      return existingDestination?.enabled
+        ? 'Apply and restart pipeline'
+        : 'Apply and start pipeline'
     } else {
       if (hasRunValidation && validationWarnings.length > 0 && !hasValidationFailures) {
-        return 'Create and start anyway'
+        return 'Create and start pipeline anyway'
       }
 
-      return 'Create and start'
+      return 'Create and start pipeline'
     }
   }
 
@@ -317,17 +328,18 @@ export const DestinationForm = ({
               <DialogSectionSeparator />
 
               {selectedType === 'BigQuery' && etlEnableBigQuery ? (
-                <BigQueryFields form={form} />
+                <BigQueryFields form={form} editMode={editMode} />
               ) : selectedType === 'Analytics Bucket' && etlEnableIceberg ? (
                 <AnalyticsBucketFields
                   form={form}
+                  editMode={editMode}
                   setIsFormInteracting={setIsFormInteracting}
                   onSelectNewBucket={() => setNewBucketSheetVisible(true)}
                 />
               ) : selectedType === 'DuckLake' && etlEnableDucklake ? (
                 <DuckLakeFields form={form} editMode={editMode} />
               ) : selectedType === 'Snowflake' && etlEnableSnowflake ? (
-                <SnowflakeFields form={form} />
+                <SnowflakeFields form={form} editMode={editMode} />
               ) : null}
 
               <DialogSectionSeparator />
@@ -365,7 +377,11 @@ export const DestinationForm = ({
               <p className="text-foreground-light text-sm">
                 {isValidating
                   ? 'Validating destination configuration...'
-                  : `${editMode ? 'Updating' : 'Creating'} destination...`}
+                  : editMode
+                    ? existingDestination?.enabled
+                      ? 'Updating destination and restarting pipeline...'
+                      : 'Updating destination and starting pipeline...'
+                    : 'Creating pipeline...'}
               </p>
             </motion.div>
           ) : (

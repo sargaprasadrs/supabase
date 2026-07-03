@@ -1179,12 +1179,12 @@ export const database: NavMenuConstant = {
       items: [
         { name: 'Overview', url: '/guides/database/replication' },
         {
-          name: 'External replication',
-          url: '/guides/database/replication/external-replication-setup' as `/${string}`,
+          name: 'Pipelines',
+          url: '/guides/database/replication/pipelines' as `/${string}`,
           items: [
             {
               name: 'Setting up',
-              url: '/guides/database/replication/external-replication-setup' as `/${string}`,
+              url: '/guides/database/replication/pipelines' as `/${string}`,
               items: [
                 {
                   name: 'BigQuery',
@@ -1194,9 +1194,9 @@ export const database: NavMenuConstant = {
             },
             {
               name: 'Monitoring',
-              url: '/guides/database/replication/external-replication-monitoring' as `/${string}`,
+              url: '/guides/database/replication/pipelines-monitoring' as `/${string}`,
             },
-            { name: 'FAQ', url: '/guides/database/replication/external-replication-faq' },
+            { name: 'FAQ', url: '/guides/database/replication/pipelines-faq' },
           ],
         },
         {
@@ -1419,6 +1419,10 @@ export const database: NavMenuConstant = {
             {
               name: 'Logflare',
               url: '/guides/database/extensions/wrappers/logflare' as `/${string}`,
+            },
+            {
+              name: 'MongoDB',
+              url: '/guides/database/extensions/wrappers/mongodb' as `/${string}`,
             },
             {
               name: 'MSSQL',
@@ -2096,6 +2100,7 @@ export const storage: NavMenuConstant = {
           items: [
             { name: 'Fundamentals', url: '/guides/storage/cdn/fundamentals' },
             { name: 'Smart CDN', url: '/guides/storage/cdn/smart-cdn' },
+            { name: 'Purging Cache', url: '/guides/storage/cdn/purge-cdn-cache' },
             { name: 'Metrics', url: '/guides/storage/cdn/metrics' },
           ],
         },
@@ -2714,6 +2719,10 @@ export const platform: NavMenuConstant = {
         {
           name: 'Restore to a new project',
           url: '/guides/platform/clone-project',
+        },
+        {
+          name: 'Project Pausing',
+          url: '/guides/platform/free-project-pausing' as `/${string}`,
         },
         {
           name: 'Single Sign-On',
