@@ -161,12 +161,14 @@ export const ChartLine = ({
           margin={margin}
           style={{ cursor: chartCursor }}
           onMouseMove={(e: any) => {
-            if (e.activeTooltipIndex !== focusDataIndex) {
-              setFocusDataIndex(e.activeTooltipIndex)
+            // recharts v3 types `activeTooltipIndex` as `string | null`; coerce to number.
+            const index = e.activeTooltipIndex != null ? Number(e.activeTooltipIndex) : null
+            if (index !== focusDataIndex) {
+              setFocusDataIndex(index)
             }
 
-            if (chartHighlight) {
-              const activeTimestamp = data[e.activeTooltipIndex]?.timestamp
+            if (chartHighlight && index !== null) {
+              const activeTimestamp = data[index]?.timestamp
               chartHighlight.handleMouseMove({
                 activeLabel: activeTimestamp?.toString(),
                 coordinates: e.activeLabel,
@@ -174,8 +176,9 @@ export const ChartLine = ({
             }
           }}
           onMouseDown={(e: any) => {
-            if (chartHighlight && e.activeTooltipIndex !== undefined) {
-              const activeTimestamp = data[e.activeTooltipIndex]?.timestamp
+            if (chartHighlight && e.activeTooltipIndex != null) {
+              const index = Number(e.activeTooltipIndex)
+              const activeTimestamp = data[index]?.timestamp
               chartHighlight.handleMouseDown({
                 activeLabel: activeTimestamp?.toString(),
                 coordinates: e.activeLabel,

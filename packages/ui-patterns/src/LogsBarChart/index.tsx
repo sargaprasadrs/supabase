@@ -90,9 +90,11 @@ export const LogsBarChart = ({
       <ChartContainer className="h-full" config={chartConfig ?? defaultChartConfig}>
         <RechartBarChart
           data={data}
-          onMouseMove={(e: any) => {
-            if (e.activeTooltipIndex !== focusDataIndex) {
-              setFocusDataIndex(e.activeTooltipIndex)
+          onMouseMove={(e) => {
+            // recharts v3 types `activeTooltipIndex` as `string | null`; coerce to number.
+            const index = e.activeTooltipIndex != null ? Number(e.activeTooltipIndex) : null
+            if (index !== focusDataIndex) {
+              setFocusDataIndex(index)
             }
           }}
           onMouseLeave={() => setFocusDataIndex(null)}

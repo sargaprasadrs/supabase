@@ -129,11 +129,13 @@ const StackedBarChart: React.FC<Props> = ({
           className="cursor-pointer overflow-visible"
           //   mouse hover focusing logic
           onMouseMove={(e: any) => {
-            if (e.activeTooltipIndex !== focusDataIndex) {
-              setFocusDataIndex(e.activeTooltipIndex)
+            // recharts v3 types `activeTooltipIndex` as `string | null`; coerce to number.
+            const index = e.activeTooltipIndex != null ? Number(e.activeTooltipIndex) : null
+            if (index !== focusDataIndex) {
+              setFocusDataIndex(index)
             }
 
-            setHover(e.activeTooltipIndex)
+            setHover(index)
           }}
           onMouseLeave={() => {
             setFocusDataIndex(null)
