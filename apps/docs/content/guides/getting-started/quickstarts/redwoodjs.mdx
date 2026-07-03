@@ -4,16 +4,16 @@ subtitle: 'Learn how to create a Supabase project, add some sample data to your 
 breadcrumb: 'Framework Quickstarts'
 ---
 
-<Admonition
-  className="[&>svg]:!bg-brand/15 [&>svg]:!text-brand dark:[&>svg]:!bg-brand/20"
-  icon={<Sparkles size={16} />}
+<GlassPanel
+  className="not-prose bg-brand-300/5 dark:bg-brand/10 border-brand/30 dark:border-brand-500/30 [&>div]:gap-0 [&>div]:px-4 [&>div]:pb-0 [&>div]:pt-4 [&_p]:text-lg [&>div>span]:block [&_p]:text-foreground-light [&_.shiki]:!bg-transparent [&_.shiki]:!rounded-none [&_.shiki]:!border-0 [&_.shiki]:!border-l-[5px] [&_.shiki]:!border-l-brand/30 dark:[&_.shiki]:!border-l-brand-500/30 [&_.shiki_.bg-control]:!bg-transparent [&_.shiki_.select-none]:hidden [&_.shiki_code]:!grid-cols-1 [&_.shiki_.code-content]:!pl-4 [&_.shiki_.pt-6]:!pt-[1.125rem]"
   title="For AI agents"
-  childProps={{ title: { className: 'text-base font-semibold' } }}
+  icon={<Sparkles size={16} className="text-brand" />}
+  background={false}
 >
 
 <$Partial path="ai/quickstart_prompt_redwoodjs.mdx" />
 
-</Admonition>
+</GlassPanel>
 
 ## 1. Setup your new Supabase project
 
