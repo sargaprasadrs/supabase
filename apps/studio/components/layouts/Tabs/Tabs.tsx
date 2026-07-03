@@ -11,6 +11,7 @@ import { useParams } from 'common'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Plus, X } from 'lucide-react'
 import { useRouter } from 'next/router'
+import { useState } from 'react'
 import {
   cn,
   ContextMenu,
@@ -27,7 +28,11 @@ import { CollapseButton } from './CollapseButton'
 import { SortableTab } from './SortableTab'
 import { TabPreview } from './TabPreview'
 import { useTabsScroll } from './Tabs.utils'
+import { useIsSqlEditorManualSaveEnabled } from '@/components/interfaces/App/FeaturePreview/FeaturePreviewContext'
+import { DiscardChangesConfirmationDialog } from '@/components/ui-patterns/Dialogs/DiscardChangesConfirmationDialog'
 import { useDashboardHistory } from '@/hooks/misc/useDashboardHistory'
+import { hasUnsavedChanges } from '@/state/sql-editor/sql-editor-lifecycle'
+import { useSqlEditorV2StateSnapshot } from '@/state/sql-editor/sql-editor-state'
 import { editorEntityTypes, useTabsStateSnapshot, type Tab } from '@/state/tabs'
 
 export const EditorTabs = () => {
@@ -37,6 +42,9 @@ export const EditorTabs = () => {
 
   const editor = useEditorType()
   const tabs = useTabsStateSnapshot()
+  const isManualSaveEnabled = useIsSqlEditorManualSaveEnabled()
+  const sqlEditorSnap = useSqlEditorV2StateSnapshot()
+  const [pendingClose, setPendingClose] = useState<(() => void) | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -76,8 +84,33 @@ export const EditorTabs = () => {
     }
   }
 
+  // Whether closing the given tabs would discard unsaved edits in one or more
+  // SQL snippets. Only SQL tabs are considered — table editor tabs never have
+  // unsaved-changes semantics.
+  const wouldDiscardUnsavedSqlChanges = (tabIds: string[]) => {
+    return tabIds.some((tabId) => {
+      const tab = tabs.tabsMap[tabId]
+      if (tab?.type !== 'sql') return false
+      const sqlId = tab.metadata?.sqlId ?? tab.id.replace(/^sql-/, '')
+      return hasUnsavedChanges(sqlEditorSnap.snippets[sqlId]?.snippet.status)
+    })
+  }
+
+  // Runs `performClose` immediately unless it would discard unsaved SQL
+  // snippet edits (and manual save is enabled), in which case a confirmation
+  // dialog is shown first and `performClose` only runs if the user confirms.
+  const closeWithConfirmation = (tabIdsToClose: string[], performClose: () => void) => {
+    if (isManualSaveEnabled && wouldDiscardUnsavedSqlChanges(tabIdsToClose)) {
+      setPendingClose(() => performClose)
+    } else {
+      performClose()
+    }
+  }
+
   const handleClose = (tabId: string) => {
-    tabs.handleTabClose({ id: tabId, router, editor, onClearDashboardHistory })
+    closeWithConfirmation([tabId], () => {
+      tabs.handleTabClose({ id: tabId, router, editor, onClearDashboardHistory })
+    })
   }
 
   const handleCloseAll = () => {
@@ -87,9 +120,11 @@ export const EditorTabs = () => {
           ? tabs.openTabs.filter((x) => !x.startsWith('sql'))
           : tabs.openTabs.filter((x) => x.startsWith('sql'))
 
-      tabs.removeTabs(tabsToClose)
-      onClearDashboardHistory()
-      router.push(`/project/${ref}/${editor === 'table' ? 'editor' : 'sql'}`)
+      closeWithConfirmation(tabsToClose, () => {
+        tabs.removeTabs(tabsToClose)
+        onClearDashboardHistory()
+        router.push(`/project/${ref}/${editor === 'table' ? 'editor' : 'sql'}`)
+      })
     }
   }
 
@@ -100,13 +135,15 @@ export const EditorTabs = () => {
           ? tabs.openTabs.filter((x) => !x.startsWith('sql') && x !== tabId)
           : tabs.openTabs.filter((x) => x.startsWith('sql') && x !== tabId)
 
-      tabs.removeTabs(tabsToClose)
-      onClearDashboardHistory()
+      closeWithConfirmation(tabsToClose, () => {
+        tabs.removeTabs(tabsToClose)
+        onClearDashboardHistory()
 
-      const entityId = editor === 'table' ? tabId.split('-')[1] : tabId.split('sql-')[1]
-      if (id !== entityId) {
-        router.push(`/project/${ref}/${editor === 'table' ? 'editor' : 'sql'}/${entityId}`)
-      }
+        const entityId = editor === 'table' ? tabId.split('-')[1] : tabId.split('sql-')[1]
+        if (id !== entityId) {
+          router.push(`/project/${ref}/${editor === 'table' ? 'editor' : 'sql'}/${entityId}`)
+        }
+      })
     }
   }
 
@@ -119,13 +156,16 @@ export const EditorTabs = () => {
       const tabIdx = openedTabs.indexOf(tabId)
       const activeTabIdx = openedTabs.indexOf(tabs.activeTab!)
       const tabsToClose = openedTabs.slice(tabIdx + 1)
-      tabs.removeTabs(tabsToClose)
 
-      const isActiveTabClosed = tabIdx < activeTabIdx
-      if (isActiveTabClosed) {
-        const id = editor === 'table' ? tabId.split('-')[1] : tabId.split('sql-')[1]
-        router.push(`/project/${ref}/${editor === 'table' ? 'editor' : 'sql'}/${id}`)
-      }
+      closeWithConfirmation(tabsToClose, () => {
+        tabs.removeTabs(tabsToClose)
+
+        const isActiveTabClosed = tabIdx < activeTabIdx
+        if (isActiveTabClosed) {
+          const id = editor === 'table' ? tabId.split('-')[1] : tabId.split('sql-')[1]
+          router.push(`/project/${ref}/${editor === 'table' ? 'editor' : 'sql'}/${id}`)
+        }
+      })
     }
   }
 
@@ -136,116 +176,129 @@ export const EditorTabs = () => {
   const { tabsListRef } = useTabsScroll({ activeTab: tabs.activeTab, tabCount: editorTabs.length })
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <Tabs_Shadcn_
-        className="w-full flex"
-        value={hasNewTab ? 'new' : (tabs.activeTab ?? undefined)}
-        onValueChange={handleTabChange}
-      >
-        <CollapseButton hideTabs={false} />
-        <TabsList_Shadcn_
-          ref={tabsListRef}
-          className={cn(
-            'rounded-b-none gap-0 min-h-(--header-height) flex items-center w-full z-1',
-            'bg-surface-200 dark:bg-alternative border-none text-clip overflow-x-auto'
-          )}
+    <>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <Tabs_Shadcn_
+          className="w-full flex"
+          value={hasNewTab ? 'new' : (tabs.activeTab ?? undefined)}
+          onValueChange={handleTabChange}
         >
-          <SortableContext
-            items={editorTabs.map((tab) => tab.id)}
-            strategy={horizontalListSortingStrategy}
-          >
-            {editorTabs.map((tab, index) => (
-              <ContextMenu key={tab.id}>
-                <ContextMenuTrigger>
-                  <SortableTab
-                    key={tab.id}
-                    tab={tab}
-                    index={index}
-                    openTabs={openTabs}
-                    onClose={() => handleClose(tab.id)}
-                  />
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  <ContextMenuItem onClick={() => handleClose(tab.id)}>Close</ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleCloseOthers(tab.id)}>
-                    Close Others
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleCloseRight(tab.id)}>
-                    Close to the Right
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={handleCloseAll}>Close All</ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            ))}
-          </SortableContext>
-
-          {/* Non-draggable new tab */}
-          {hasNewTab && (
-            <TabsTrigger_Shadcn_
-              value="new"
-              className={cn(
-                'flex items-center gap-2 px-3 text-xs',
-                'bg-dash-sidebar/50 dark:bg-surface-100/50',
-                'data-[state=active]:bg-dash-sidebar dark:data-[state=active]:bg-surface-100',
-                'relative group h-full border-t-2 border-b-0!',
-                'hover:bg-surface-300 dark:hover:bg-surface-100'
-              )}
-            >
-              <Plus size={16} strokeWidth={1.5} className={'text-foreground-lighter'} />
-              <div className="flex items-center gap-0">
-                <span>New</span>
-              </div>
-              <span
-                role="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }}
-                className="ml-1 opacity-0 group-hover:opacity-100 hover:bg-200 rounded-xs cursor-pointer"
-                onMouseDown={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }}
-                onPointerDown={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  handleClose('new')
-                }}
-              >
-                <X size={12} className="text-foreground-light" />
-              </span>{' '}
-              <div className="absolute w-full -bottom-px left-0 right-0 h-px bg-dash-sidebar dark:bg-surface-100 opacity-0 group-data-[state=active]:opacity-100" />
-            </TabsTrigger_Shadcn_>
-          )}
-
-          <AnimatePresence initial={false}>
-            {!hasNewTab && (
-              <motion.button
-                className="flex items-center justify-center w-10 min-h-(--header-height) hover:bg-surface-100 shrink-0 border-b"
-                onClick={() =>
-                  router.push(
-                    `/project/${router.query.ref}/${editor === 'table' ? 'editor' : 'sql'}/new?skip=true`
-                  )
-                }
-                initial={{ opacity: 0, scale: 0.8, x: -10 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Plus
-                  size={16}
-                  strokeWidth={1.5}
-                  className="text-foreground-lighter hover:text-foreground-light"
-                />
-              </motion.button>
+          <CollapseButton hideTabs={false} />
+          <TabsList_Shadcn_
+            ref={tabsListRef}
+            className={cn(
+              'rounded-b-none gap-0 min-h-(--header-height) flex items-center w-full z-1',
+              'bg-surface-200 dark:bg-alternative border-none text-clip overflow-x-auto'
             )}
-          </AnimatePresence>
-          <div className="grow h-full border-b pr-6" />
-        </TabsList_Shadcn_>
-      </Tabs_Shadcn_>
+          >
+            <SortableContext
+              items={editorTabs.map((tab) => tab.id)}
+              strategy={horizontalListSortingStrategy}
+            >
+              {editorTabs.map((tab, index) => (
+                <ContextMenu key={tab.id}>
+                  <ContextMenuTrigger>
+                    <SortableTab
+                      key={tab.id}
+                      tab={tab}
+                      index={index}
+                      openTabs={openTabs}
+                      onClose={() => handleClose(tab.id)}
+                    />
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem onClick={() => handleClose(tab.id)}>Close</ContextMenuItem>
+                    <ContextMenuItem onClick={() => handleCloseOthers(tab.id)}>
+                      Close Others
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => handleCloseRight(tab.id)}>
+                      Close to the Right
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={handleCloseAll}>Close All</ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              ))}
+            </SortableContext>
 
-      <DragOverlay dropAnimation={null}>
-        {tabs.activeTab ? <TabPreview tab={tabs.activeTab} /> : null}
-      </DragOverlay>
-    </DndContext>
+            {/* Non-draggable new tab */}
+            {hasNewTab && (
+              <TabsTrigger_Shadcn_
+                value="new"
+                className={cn(
+                  'flex items-center gap-2 px-3 text-xs',
+                  'bg-dash-sidebar/50 dark:bg-surface-100/50',
+                  'data-[state=active]:bg-dash-sidebar dark:data-[state=active]:bg-surface-100',
+                  'relative group h-full border-t-2 border-b-0!',
+                  'hover:bg-surface-300 dark:hover:bg-surface-100'
+                )}
+              >
+                <Plus size={16} strokeWidth={1.5} className={'text-foreground-lighter'} />
+                <div className="flex items-center gap-0">
+                  <span>New</span>
+                </div>
+                <span
+                  role="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                  className="ml-1 opacity-0 group-hover:opacity-100 hover:bg-200 rounded-xs cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleClose('new')
+                  }}
+                >
+                  <X size={12} className="text-foreground-light" />
+                </span>{' '}
+                <div className="absolute w-full -bottom-px left-0 right-0 h-px bg-dash-sidebar dark:bg-surface-100 opacity-0 group-data-[state=active]:opacity-100" />
+              </TabsTrigger_Shadcn_>
+            )}
+
+            <AnimatePresence initial={false}>
+              {!hasNewTab && (
+                <motion.button
+                  className="flex items-center justify-center w-10 min-h-(--header-height) hover:bg-surface-100 shrink-0 border-b"
+                  onClick={() =>
+                    router.push(
+                      `/project/${router.query.ref}/${editor === 'table' ? 'editor' : 'sql'}/new?skip=true`
+                    )
+                  }
+                  initial={{ opacity: 0, scale: 0.8, x: -10 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Plus
+                    size={16}
+                    strokeWidth={1.5}
+                    className="text-foreground-lighter hover:text-foreground-light"
+                  />
+                </motion.button>
+              )}
+            </AnimatePresence>
+            <div className="grow h-full border-b pr-6" />
+          </TabsList_Shadcn_>
+        </Tabs_Shadcn_>
+
+        <DragOverlay dropAnimation={null}>
+          {tabs.activeTab ? <TabPreview tab={tabs.activeTab} /> : null}
+        </DragOverlay>
+      </DndContext>
+
+      <DiscardChangesConfirmationDialog
+        visible={pendingClose !== null}
+        onClose={() => {
+          pendingClose?.()
+          setPendingClose(null)
+        }}
+        onCancel={() => setPendingClose(null)}
+        title="Unsaved changes"
+        description="You have unsaved changes in this SQL snippet. Closing it will discard them."
+      />
+    </>
   )
 }

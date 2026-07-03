@@ -1,11 +1,19 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { createContext, useContext, useEffect, useMemo, type PropsWithChildren } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type PropsWithChildren,
+} from 'react'
 import { toast } from 'sonner'
 
 import { hasUnsavedChanges } from './sql-editor-lifecycle'
 import { createSaveMechanism } from './sql-editor-save'
-import { createSaveScheduler, type SaveScheduler } from './sql-editor-save-scheduler'
+import { createSaveScheduler, type SaveMode, type SaveScheduler } from './sql-editor-save-scheduler'
 import { sqlEditorState } from './sql-editor-state'
+import { useIsSqlEditorManualSaveEnabled } from '@/components/interfaces/App/FeaturePreview/FeaturePreviewContext'
 import { upsertContent } from '@/data/content/content-upsert-mutation'
 import { contentKeys } from '@/data/content/keys'
 import { createSQLSnippetFolder } from '@/data/content/sql-folder-create-mutation'
@@ -26,6 +34,12 @@ const SqlEditorSaveCoordinatorContext = createContext<SaveCoordinator | null>(nu
 export function SqlEditorSaveCoordinatorProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient()
 
+  const isManualSaveEnabled = useIsSqlEditorManualSaveEnabled()
+  const saveModeRef = useRef<SaveMode>('auto')
+  useEffect(() => {
+    saveModeRef.current = isManualSaveEnabled ? 'manual' : 'auto'
+  }, [isManualSaveEnabled])
+
   const scheduler = useMemo(() => {
     const mechanism = createSaveMechanism({
       state: sqlEditorState,
@@ -41,8 +55,15 @@ export function SqlEditorSaveCoordinatorProvider({ children }: PropsWithChildren
         ])
       },
     })
-    // getSaveMode defaults to 'auto'; the manual-save opt-in plugs in here later.
-    return createSaveScheduler({ state: sqlEditorState, saveMechanism: mechanism, notify: toast })
+    // getSaveMode is invoked synchronously from a Valtio `subscribe` callback,
+    // outside React's render cycle, so it can't read reactive state directly.
+    // Route it through a ref that's kept in sync via the effect above instead.
+    return createSaveScheduler({
+      state: sqlEditorState,
+      saveMechanism: mechanism,
+      notify: toast,
+      getSaveMode: () => saveModeRef.current,
+    })
   }, [queryClient])
 
   useEffect(() => scheduler.start(), [scheduler])
