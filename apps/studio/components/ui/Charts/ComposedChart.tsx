@@ -4,7 +4,6 @@ import {
   Area,
   Bar,
   CartesianGrid,
-  Customized,
   Label,
   Line,
   ComposedChart as RechartComposedChart,
@@ -78,22 +77,6 @@ export interface ComposedChartProps<D = Datum> extends CommonChartProps<D> {
   highlightActions?: ChartHighlightAction[]
   showNewBadge?: boolean
   normalizeVisibleStackToPercent?: boolean
-}
-
-interface CustomizedDotProps {
-  formattedGraphicalItems?: Array<{
-    props?: {
-      points?: Array<{ x: number; y: number }>
-      dataKey?: string
-    }
-    item?: {
-      props?: {
-        points?: Array<{ x: number; y: number }>
-        dataKey?: string
-      }
-    }
-    points?: Array<{ x: number; y: number }>
-  }>
 }
 
 export function ComposedChart({
@@ -579,7 +562,12 @@ export function ComposedChart({
                     attributes?.find((a) => a.attribute === attribute.name)?.label || attribute.name
                   }
                   dot={false}
-                  activeDot={false}
+                  activeDot={{
+                    r: 4,
+                    fill: attribute.fill,
+                    stroke: attribute.color,
+                    strokeWidth: 1,
+                  }}
                 />
               ))}
           {/* Max value, if available */}
@@ -654,39 +642,6 @@ export function ComposedChart({
             cursor={{
               stroke: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)',
               strokeWidth: 1,
-            }}
-          />
-          <Customized
-            component={(props: CustomizedDotProps) => {
-              const { formattedGraphicalItems } = props
-              if (!formattedGraphicalItems || focusDataIndex === null) return null
-
-              return (
-                <g>
-                  {formattedGraphicalItems.map((item, index: number) => {
-                    const points = item.props?.points || item.item?.props?.points || item.points
-                    const dataKey = item.props?.dataKey || item.item?.props?.dataKey
-
-                    if (!points || !points[focusDataIndex]) return null
-
-                    const point = points[focusDataIndex]
-                    const attribute = visibleAttributes.find((a) => a.name === dataKey)
-                    if (!attribute) return null
-
-                    return (
-                      <circle
-                        key={`custom-dot-${dataKey}-${index}`}
-                        cx={point.x}
-                        cy={point.y}
-                        r={4}
-                        fill={attribute.fill}
-                        stroke={attribute.color}
-                        strokeWidth={1}
-                      />
-                    )
-                  })}
-                </g>
-              )
             }}
           />
         </RechartComposedChart>
