@@ -75,11 +75,26 @@ jobs:
       - name: Install Playwright Browsers
         run: pnpm -C e2e/studio exec playwright install chromium --with-deps --only-shell
 
+      - name: Resolve latest supabase/postgres multigres image
+        id: pg_image
+        run: |
+          tag=$(curl -s "https://hub.docker.com/v2/repositories/supabase/postgres/tags?page_size=100&name=multigres" \
+            | jq -r '[.results[] | select(.name | test("^[0-9.]+-multigres$"))] | sort_by(.last_updated) | last | .name')
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            echo "ERROR: could not resolve a supabase/postgres:*-multigres tag from Docker Hub" >&2
+            exit 1
+          fi
+          echo "Resolved image: supabase/postgres:$tag"
+          echo "image=supabase/postgres:$tag" >> "$GITHUB_OUTPUT"
+
       - name: Start Multigres
         run: |
           git clone --depth 1 https://github.com/multigres/multigres.git /tmp/multigres
           cd /tmp/multigres
           echo "Multigres ref: $(git rev-parse --short HEAD)"
+          echo "Postgres base image: ${{ steps.pg_image.outputs.image }}"
+          MULTIGRES_POSTGRES_IMAGE="${{ steps.pg_image.outputs.image }}" \
+          MULTIGRES_PROVISION_PG_PACKAGES=false \
           docker compose up --build -d
           echo "Waiting for Multigres to become healthy..."
           for i in $(seq 1 60); do

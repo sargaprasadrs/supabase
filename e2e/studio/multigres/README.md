@@ -7,10 +7,17 @@ Studio E2E suite can run against it.
 ## Prerequisites
 
 1. **Docker** running.
-2. **Multigres** running with its gateway on `127.0.0.1:15432`:
+2. **Multigres** running with its gateway on `127.0.0.1:15432`, built on a
+   [`supabase/postgres`](https://hub.docker.com/r/supabase/postgres/tags?name=multigres)
+   `*-multigres` base image so the Supabase roles/schemas/extensions already
+   exist via that image's `initdb` (pick the latest tag matching
+   `*-multigres`, excluding `-orioledb-` and `_amd64`/`_arm64` variants):
    ```bash
    git clone https://github.com/multigres/multigres
-   cd multigres && docker compose up --build -d   # wait ~30s for healthy
+   cd multigres
+   MULTIGRES_POSTGRES_IMAGE=supabase/postgres:<tag>-multigres \
+   MULTIGRES_PROVISION_PG_PACKAGES=false \
+   docker compose up --build -d   # wait ~30s for healthy
    ```
 
 ## Usage
@@ -18,7 +25,7 @@ Studio E2E suite can run against it.
 From the repo root:
 
 ```bash
-pnpm e2e:multigres        # provision the database + start the stack
+pnpm e2e:multigres        # sync demo passwords + start the stack
 pnpm e2e:multigres:down   # stop the stack
 ```
 
@@ -50,11 +57,11 @@ pnpm exec playwright test
 
 ## Files
 
-| File                          | Purpose                                                         |
-| ----------------------------- | --------------------------------------------------------------- |
-| `multigres.env`               | Stack env (demo secrets), with Postgres pointed at the gateway  |
-| `docker-compose.override.yml` | Layers on `docker/docker-compose.yml` for the external database |
-| `setup.sh`                    | Provisions the database and starts the stack                    |
+| File                          | Purpose                                                           |
+| ----------------------------- | ----------------------------------------------------------------- |
+| `multigres.env`               | Stack env (demo secrets), with Postgres pointed at the gateway    |
+| `docker-compose.override.yml` | Layers on `docker/docker-compose.yml` for the external database   |
+| `setup.sh`                    | Syncs demo passwords onto the baked-in roles and starts the stack |
 
 ## CI
 
