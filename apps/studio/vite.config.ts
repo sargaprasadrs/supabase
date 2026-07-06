@@ -363,6 +363,23 @@ export default defineConfig(({ command, mode }) => {
     },
     resolve: {
       tsconfigPaths: true,
+      alias: [
+        // `@sentry/nextjs`'s client entry drags in Next runtime internals
+        // (`next/dist/shared/lib/constants`), whose module scope evaluates
+        // `process?.features?.typescript` — optional chaining doesn't guard
+        // an undeclared `process` in the browser, so every built chunk
+        // containing it (e.g. table-editor) crashed at load with
+        // "ReferenceError: process is not defined". Dev is unaffected
+        // because the dev pipeline shims `process`. Point the bare import
+        // at a shim that re-exports `@sentry/react` (same 10.x version —
+        // it's what `@sentry/nextjs` wraps on the client) plus explicit
+        // stand-ins for the Next-only APIs. Next build (`build:next`)
+        // doesn't read this config and keeps the real package.
+        {
+          find: /^@sentry\/nextjs$/,
+          replacement: path.resolve(rootDir, 'compat/sentry-nextjs.ts'),
+        },
+      ],
     },
     ...(basePath && { base: basePath }),
     define: {
@@ -449,31 +466,12 @@ export default defineConfig(({ command, mode }) => {
       // entire exports object `{ default: fn }`, and call sites like
       // `AwesomeDebouncePromise(fn, 500)` crash with "is not a function" at
       // SSR module evaluation. Surfaces on routes that load the table grid.
-      // `@sentry/nextjs`'s CJS entry doesn't surface `startSpan` (and other
-      // v8 APIs) onto the namespace shape Vite's SSR externalizer produces,
-      // so `import * as Sentry from '@sentry/nextjs'` + `Sentry.startSpan`
-      // crashes with "is not a function" inside the pg-meta proxy on the
-      // first table-editor request.
-      noExternal: [
-        'lodash',
-        /^next(\/|$)/,
-        'tslib',
-        'react-use',
-        'awesome-debounce-promise',
-        '@sentry/nextjs',
-      ],
-      // Vite 8.0.13's SSR module runner evaluates `@sentry/nextjs`'s
-      // CJS file via `runInlinedModule` without the CJS-compat wrapper
-      // older vite applied, crashing with "exports is not defined" at
-      // SSR. Forcing pre-bundling via esbuild rewrites it to ESM
-      // before the SSR runner sees it. Only `@sentry/nextjs` needs
-      // this — the other CJS deps in `noExternal` work via vite's SSR
-      // transform; pre-bundling React-using deps (e.g. `react-use`)
-      // inlines a duplicate React into the bundle and breaks hook
-      // dedupe at SSR (useRef → null).
-      optimizeDeps: {
-        include: ['@sentry/nextjs'],
-      },
+      // `@sentry/nextjs` itself needed CJS workarounds here (noExternal +
+      // ssr.optimizeDeps.include) — both dropped now that the resolve.alias
+      // above rewrites it to the `@sentry/react`-backed shim before SSR
+      // resolution ever sees the id. `@sentry/react` ships real ESM
+      // ("import" condition → build/esm), so plain externalization works.
+      noExternal: ['lodash', /^next(\/|$)/, 'tslib', 'react-use', 'awesome-debounce-promise'],
     },
     plugins: [
       nextCompat(),
