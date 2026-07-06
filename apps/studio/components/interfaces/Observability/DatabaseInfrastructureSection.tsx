@@ -19,7 +19,6 @@ import { useInfraMonitoringAttributesQuery } from '@/data/analytics/infra-monito
 import { useMaxConnectionsQuery } from '@/data/database/max-connections-query'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
 
-// A single metric tile: a linked card with a labelled header and a value slot
 const MetricLinkCard = ({
   href,
   linkTooltip,
