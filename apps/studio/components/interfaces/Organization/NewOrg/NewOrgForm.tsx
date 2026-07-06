@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import * as Sentry from '@sentry/nextjs'
 import { Elements } from '@stripe/react-stripe-js'
 import type { PaymentIntentResult, PaymentMethod, StripeElementsOptions } from '@stripe/stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
@@ -305,7 +306,7 @@ export const NewOrgForm = ({
         { organization: org.slug }
       )
     } else {
-      console.warn(
+      Sentry.captureMessage(
         'organization_creation_completed not emitted: submittedTier ref was not set before org creation completed'
       )
     }
