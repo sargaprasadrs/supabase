@@ -51,7 +51,9 @@ export function useStatusPageBannerVisibility(): StatusPageBannerData | null {
     [allProjects]
   )
   const hasUnknownRegions = orgProjectsQueries.some(
-    (q) => q.isError || (q.data !== undefined && q.data.pagination.count > q.data.projects.length)
+    (q) =>
+      q.isError ||
+      (q.data !== undefined && (q.data.pagination?.count ?? 0) > q.data.projects.length)
   )
 
   const [dismissedIds, setDismissedIds, { isSuccess: isDismissedLoaded }] = useLocalStorageQuery<

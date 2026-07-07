@@ -16,7 +16,7 @@ export const formatAllEntities = ({
   materializedViews?: PGMaterializedView[]
   foreignTables?: PGForeignTable[]
 }) => {
-  const formattedTables = tables.map((x) => {
+  const formattedTables = (Array.isArray(tables) ? tables : []).map((x) => {
     return {
       ...x,
       type: ENTITY_TYPE.TABLE as const,
@@ -25,7 +25,7 @@ export const formatAllEntities = ({
     }
   })
 
-  const formattedViews = views.map((x) => {
+  const formattedViews = (Array.isArray(views) ? views : []).map((x) => {
     return {
       type: ENTITY_TYPE.VIEW as const,
       id: x.id,
@@ -38,7 +38,9 @@ export const formatAllEntities = ({
     }
   })
 
-  const formattedMaterializedViews = materializedViews.map((x) => {
+  const formattedMaterializedViews = (
+    Array.isArray(materializedViews) ? materializedViews : []
+  ).map((x) => {
     return {
       type: ENTITY_TYPE.MATERIALIZED_VIEW as const,
       id: x.id,
@@ -51,7 +53,7 @@ export const formatAllEntities = ({
     }
   })
 
-  const formattedForeignTables = foreignTables.map((x) => {
+  const formattedForeignTables = (Array.isArray(foreignTables) ? foreignTables : []).map((x) => {
     return {
       type: ENTITY_TYPE.FOREIGN_TABLE as const,
       id: x.id,

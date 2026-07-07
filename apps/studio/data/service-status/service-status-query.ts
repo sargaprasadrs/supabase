@@ -3,6 +3,7 @@ import { components } from 'api-types'
 
 import { serviceStatusKeys } from './keys'
 import { get, handleError } from '@/data/fetchers'
+import { EMPTY_ARR } from '@/lib/void'
 import type { ResponseError, UseCustomQueryOptions } from '@/types'
 
 export type ProjectServiceStatusVariables = {
@@ -34,7 +35,7 @@ export async function getProjectServiceStatus(
 
   if (error) handleError(error)
 
-  return data as ServiceHealthResponse[]
+  return Array.isArray(data) ? (data as ServiceHealthResponse[]) : EMPTY_ARR
 }
 
 export type ProjectServiceStatusData = Awaited<ReturnType<typeof getProjectServiceStatus>>

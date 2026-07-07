@@ -4,6 +4,7 @@ import { components } from 'api-types'
 import { projectKeys } from './keys'
 import { get, handleError } from '@/data/fetchers'
 import { useProfile } from '@/lib/profile'
+import { EMPTY_ARR } from '@/lib/void'
 import type { ResponseError, UseCustomInfiniteQueryOptions } from '@/types'
 
 const DEFAULT_LIMIT = 100
@@ -39,7 +40,12 @@ async function getProjects(
   })
 
   if (error) handleError(error)
-  return data as unknown as components['schemas']['ListProjectsPaginatedResponse']
+
+  const result = data as unknown as components['schemas']['ListProjectsPaginatedResponse']
+  return {
+    ...result,
+    projects: Array.isArray(result?.projects) ? result.projects : EMPTY_ARR,
+  }
 }
 
 export type ProjectsInfiniteData = Awaited<ReturnType<typeof getProjects>>

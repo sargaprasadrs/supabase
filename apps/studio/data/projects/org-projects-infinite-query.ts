@@ -5,6 +5,7 @@ import { useCallback } from 'react'
 import { INFINITE_PROJECTS_KEY_PREFIX, projectKeys } from './keys'
 import { get, handleError } from '@/data/fetchers'
 import { useProfile } from '@/lib/profile'
+import { EMPTY_ARR } from '@/lib/void'
 import type { ResponseError, UseCustomInfiniteQueryOptions } from '@/types'
 
 // [Joshen] Try to keep this value a multiple of 6 (common denominator of 2 and 3) to fit the cards view
@@ -49,7 +50,11 @@ export async function getOrganizationProjects(
   })
 
   if (error) handleError(error)
-  return data
+
+  return {
+    ...data,
+    projects: Array.isArray(data?.projects) ? data.projects : EMPTY_ARR,
+  }
 }
 
 export type OrgProjectsInfiniteData = Awaited<ReturnType<typeof getOrganizationProjects>>
@@ -85,9 +90,9 @@ export const useOrgProjectsInfiniteQuery = <TData = OrgProjectsInfiniteData>(
     getNextPageParam(lastPage, pages) {
       const page = pages.length
       const currentTotalCount = page * limit
-      const totalCount = lastPage.pagination.count
+      const totalCount = lastPage?.pagination?.count
 
-      if (currentTotalCount >= totalCount) return undefined
+      if (totalCount === undefined || currentTotalCount >= totalCount) return undefined
       return page
     },
     ...options,
