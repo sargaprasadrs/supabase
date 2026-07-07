@@ -1,9 +1,9 @@
 import { useParams } from 'common'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, type ComponentType } from 'react'
 import { Button } from 'ui'
-import { Admonition } from 'ui-patterns'
+import { Admonition } from 'ui-patterns/admonition'
 import { GenericSkeletonLoader } from 'ui-patterns/ShimmeringLoader'
 
 import type {
@@ -128,6 +128,27 @@ function useConnectionStringPooler(deploymentMode: DeploymentMode): ConnectionSt
   )
 }
 
+// Vite needs `import.meta.glob` to statically discover the step content
+// modules because the `${filePath}` template can span multiple directory
+// segments (`flask/supabasepy`, `steps/shadcn/explore`, ...) which Vite's
+// dynamic-import-vars plugin can't analyze. Skip the glob on the SSR bundle
+// — Vite replaces `import.meta.env.SSR` at build time and tree-shakes the
+// call so the 37 content modules stay out of the server graph (pulling them
+// in reshuffles chunks enough to surface latent circular-dep bugs in
+// unrelated modules). Next/webpack doesn't know about `import.meta.glob`
+// either; the try/catch lets that branch fall through to the webpack-friendly
+// `import()` below.
+let contentModules: Record<string, () => Promise<unknown>> = {}
+if (!import.meta.env?.SSR) {
+  try {
+    contentModules = import.meta.glob('./content/**/content.{tsx,ts}')
+  } catch {
+    // webpack build: import.meta.glob is undefined, keep empty map
+  }
+}
+
+type StepContentModule = { default: ComponentType<StepContentProps> }
+
 /**
  * Dynamically loads and renders a content component from the content directory.
  * All step content uses this unified loader - no built-in component registry needed.
@@ -150,7 +171,16 @@ function StepContent({
 
   // Dynamically import the content component
   const ContentComponent = useMemo(() => {
-    return dynamic<StepContentProps>(() => import(`./content/${filePath}/content`), {
+    const viteLoader =
+      contentModules[`./content/${filePath}/content.tsx`] ??
+      contentModules[`./content/${filePath}/content.ts`]
+
+    const loader = viteLoader
+      ? (viteLoader as () => Promise<StepContentModule>)
+      : () =>
+          import(/* @vite-ignore */ `./content/${filePath}/content`) as Promise<StepContentModule>
+
+    return dynamic<StepContentProps>(loader, {
       loading: () => (
         <div className="p-4 min-h-[200px]">
           <GenericSkeletonLoader />
@@ -190,6 +220,8 @@ export function ConnectStepsSection({ steps, state, projectKeys }: ConnectStepsS
     !ipv4Addon &&
     (state.connectionMethod === 'direct' ||
       (state.connectionMethod === 'transaction' && !state.useSharedPooler))
+  const showSessionPoolerNotice =
+    deploymentMode.isPlatform && state.mode === 'direct' && state.connectionMethod === 'session'
 
   const showSelfHostedMcpNotice = deploymentMode.isSelfHosted && state.mode === 'mcp'
 
@@ -200,19 +232,25 @@ export function ConnectStepsSection({ steps, state, projectKeys }: ConnectStepsS
       <div className="p-8 flex flex-col gap-y-6">
         <h3>Connect your app</h3>
 
-        <CopyPromptAdmonition stepsContainerRef={stepsContainerRef} />
-
         {showIpv4AddonNotice && (
           <Admonition
             type="default"
             title={`${state.connectionMethod === 'direct' ? 'Direct connections use' : 'Transaction pooler uses'} IPv6 by default`}
             description="Enable the dedicated IPv4 address add-on to connect from IPv4-only networks"
             actions={[
-              <Button asChild key="addon" type="default">
+              <Button asChild key="addon" variant="default">
                 <Link href={`/project/${ref}/settings/addons?panel=ipv4`}>Enable IPv4 add-on</Link>
               </Button>,
               <DocsButton key="docs" href={`${DOCS_URL}/guides/platform/ipv4-address`} />,
             ]}
+          />
+        )}
+
+        {showSessionPoolerNotice && (
+          <Admonition
+            type="default"
+            title="Only use Session Pooler on an IPv4 network"
+            description="Session pooler connections are IPv4 proxied for free. Use Direct Connection if connecting via an IPv6 network."
           />
         )}
 
@@ -229,6 +267,8 @@ export function ConnectStepsSection({ steps, state, projectKeys }: ConnectStepsS
             ]}
           />
         )}
+
+        <CopyPromptAdmonition stepsContainerRef={stepsContainerRef} />
 
         <div className="mt-6" ref={stepsContainerRef}>
           {steps.map((step, index) => (
