@@ -60,7 +60,7 @@ export function useDatabaseActivityQuery(
   { enabled = true, isPaused = false }: { enabled?: boolean; isPaused?: boolean } = {}
 ) {
   return useQuery<RawSession[], ResponseError>({
-    queryKey: ['database-activity', 'sessions', projectRef],
+    queryKey: ['database-activity', 'sessions', projectRef, connectionString],
     queryFn: ({ signal }) => getSessions({ projectRef, connectionString }, signal),
     enabled: enabled && typeof projectRef !== 'undefined',
     refetchInterval: isPaused ? false : 5000,
@@ -76,7 +76,7 @@ export function useMaxConnectionsQuery({
   connectionString,
 }: DatabaseActivityVariables) {
   return useQuery<number | null, ResponseError>({
-    queryKey: ['database-activity', 'max-connections', projectRef],
+    queryKey: ['database-activity', 'max-connections', projectRef, connectionString],
     queryFn: async ({ signal }) => {
       const { result } = await executeSql(
         {
