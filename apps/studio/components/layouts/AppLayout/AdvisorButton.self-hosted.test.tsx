@@ -1,30 +1,16 @@
+import { screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AdvisorButton } from '@/components/layouts/AppLayout/AdvisorButton'
 import { render } from '@/tests/helpers'
 
-const {
-  mockUseProjectLintsQuery,
-  mockUseNotificationsV2Query,
-  mockUseAdvisorSignals,
-  mockToggleSidebar,
-} = vi.hoisted(() => ({
-  mockUseProjectLintsQuery: vi.fn(),
-  mockUseNotificationsV2Query: vi.fn(),
-  mockUseAdvisorSignals: vi.fn(),
+const { mockUseAdvisorAttention, mockToggleSidebar } = vi.hoisted(() => ({
+  mockUseAdvisorAttention: vi.fn(),
   mockToggleSidebar: vi.fn(),
 }))
 
-vi.mock('@/data/lint/lint-query', () => ({
-  useProjectLintsQuery: mockUseProjectLintsQuery,
-}))
-
-vi.mock('@/data/notifications/notifications-v2-query', () => ({
-  useNotificationsV2Query: mockUseNotificationsV2Query,
-}))
-
-vi.mock('@/components/ui/AdvisorPanel/useAdvisorSignals', () => ({
-  useAdvisorSignals: mockUseAdvisorSignals,
+vi.mock('@/components/ui/AdvisorPanel/useAdvisorAttention', () => ({
+  useAdvisorAttention: mockUseAdvisorAttention,
 }))
 
 vi.mock('@/lib/constants', async (importOriginal) => ({
@@ -41,17 +27,11 @@ vi.mock('@/state/sidebar-manager-state', () => ({
 
 describe('AdvisorButton on self-hosted', () => {
   beforeEach(() => {
-    mockUseProjectLintsQuery.mockReturnValue({ data: [], isPending: false, isError: false })
-    mockUseNotificationsV2Query.mockReturnValue({
-      data: { pages: [[]] },
-      isPending: false,
-      isError: false,
-    })
-    mockUseAdvisorSignals.mockReturnValue({
-      data: [],
-      isPending: false,
-      isError: false,
-      dismissSignal: vi.fn(),
+    mockUseAdvisorAttention.mockReturnValue({
+      hasCriticalIssues: false,
+      hasWarningIssues: false,
+      hasUnreadNotifications: false,
+      criticalNotifications: [],
     })
   })
 
@@ -59,12 +39,10 @@ describe('AdvisorButton on self-hosted', () => {
     vi.clearAllMocks()
   })
 
-  it('disables the notifications query so no request is made to the platform endpoint', () => {
+  it('renders without platform notification state', () => {
     render(<AdvisorButton projectRef="project-ref" />)
 
-    expect(mockUseNotificationsV2Query).toHaveBeenCalledWith(
-      { filters: {}, limit: 20 },
-      { enabled: false }
-    )
+    expect(mockUseAdvisorAttention).toHaveBeenCalledWith({ projectRef: 'project-ref' })
+    expect(screen.getByRole('button')).toBeInTheDocument()
   })
 })

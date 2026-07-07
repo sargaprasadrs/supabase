@@ -1,40 +1,18 @@
 import { Lightbulb } from 'lucide-react'
-import { useMemo } from 'react'
 import { cn } from 'ui'
 
 import { SIDEBAR_KEYS } from '@/components/layouts/ProjectLayout/LayoutSidebar/LayoutSidebarProvider'
-import { useAdvisorSignals } from '@/components/ui/AdvisorPanel/useAdvisorSignals'
+import { useAdvisorAttention } from '@/components/ui/AdvisorPanel/useAdvisorAttention'
 import { ButtonTooltip } from '@/components/ui/ButtonTooltip'
-import { useProjectLintsQuery } from '@/data/lint/lint-query'
-import { useNotificationsV2Query } from '@/data/notifications/notifications-v2-query'
-import { IS_PLATFORM } from '@/lib/constants'
 import { useTrack } from '@/lib/telemetry/track'
 import { useSidebarManagerSnapshot } from '@/state/sidebar-manager-state'
 
 export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
   const { toggleSidebar, activeSidebar } = useSidebarManagerSnapshot()
   const track = useTrack()
-
-  const { data: lints } = useProjectLintsQuery({ projectRef })
-  const { data: signalItems } = useAdvisorSignals({ projectRef })
-
-  const { data: notificationsData } = useNotificationsV2Query(
-    { filters: {}, limit: 20 },
-    { enabled: IS_PLATFORM }
-  )
-  const notifications = useMemo(() => {
-    return notificationsData?.pages.flatMap((page) => page) ?? []
-  }, [notificationsData?.pages])
-  const hasUnreadNotifications = notifications.some((x) => x?.status === 'new')
-  const hasCriticalNotifications = notifications.some((x) => x?.priority === 'Critical')
-  const hasSignals = signalItems.length > 0
-  const hasCriticalSignals = signalItems.some((item) => item.severity === 'critical')
-
-  const hasCriticalIssues =
-    hasCriticalNotifications ||
-    hasCriticalSignals ||
-    (Array.isArray(lints) && lints.some((lint) => lint.level === 'ERROR'))
-  const hasWarningIssues = hasSignals && !hasCriticalIssues
+  const { hasCriticalIssues, hasWarningIssues, hasUnreadNotifications } = useAdvisorAttention({
+    projectRef,
+  })
 
   const isOpen = activeSidebar?.id === SIDEBAR_KEYS.ADVISOR_PANEL
 
@@ -65,18 +43,19 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
           size={16}
           strokeWidth={1.5}
           className={cn(
-            'text-foreground-light group-hover:text-foreground',
+            hasCriticalIssues && !isOpen && 'text-destructive group-hover:text-destructive',
+            !hasCriticalIssues && 'text-foreground-light group-hover:text-foreground',
             isOpen && 'text-background group-hover:text-background'
           )}
         />
         <span className="sr-only">Advisor Center</span>
       </ButtonTooltip>
       {hasCriticalIssues ? (
-        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-destructive" />
+        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive" />
       ) : hasWarningIssues ? (
-        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-warning" />
+        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-warning" />
       ) : hasUnreadNotifications ? (
-        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand" />
+        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-brand" />
       ) : null}
     </div>
   )
