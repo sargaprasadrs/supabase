@@ -22,15 +22,20 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
   }
 
   return (
-    <div className="relative">
+    <div className="relative inline-flex size-8 items-center justify-center">
       <ButtonTooltip
         variant="outline"
         size="tiny"
         id="advisor-center-trigger"
         className={cn(
           'rounded-full w-[32px] h-[32px] flex items-center justify-center p-0 group',
-          hasCriticalIssues && 'bg-destructive-200 border-destructive-500',
-          isOpen && 'bg-foreground text-background'
+          hasCriticalIssues &&
+            !isOpen &&
+            'bg-destructive-200 border-destructive-500 hover:border-destructive-600',
+          hasCriticalIssues &&
+            isOpen &&
+            'bg-destructive-300 border-destructive-500 hover:border-destructive-600',
+          !hasCriticalIssues && isOpen && 'bg-foreground text-background'
         )}
         onClick={handleClick}
         tooltip={{
@@ -43,19 +48,19 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
           size={16}
           strokeWidth={1.5}
           className={cn(
-            hasCriticalIssues && !isOpen && 'text-destructive group-hover:text-destructive',
-            !hasCriticalIssues && 'text-foreground-light group-hover:text-foreground',
-            isOpen && 'text-background group-hover:text-background'
+            hasCriticalIssues && 'text-destructive group-hover:text-destructive',
+            !hasCriticalIssues && !isOpen && 'text-foreground-light group-hover:text-foreground',
+            !hasCriticalIssues && isOpen && 'text-background group-hover:text-background'
           )}
         />
         <span className="sr-only">Advisor Center</span>
       </ButtonTooltip>
       {hasCriticalIssues ? (
-        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive" />
+        <span className="pointer-events-none absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive" />
       ) : hasWarningIssues ? (
-        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-warning" />
+        <span className="pointer-events-none absolute top-1 right-1 w-2 h-2 rounded-full bg-warning" />
       ) : hasUnreadNotifications ? (
-        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-brand" />
+        <span className="pointer-events-none absolute top-1 right-1 w-2 h-2 rounded-full bg-brand" />
       ) : null}
     </div>
   )
