@@ -56,6 +56,7 @@ import {
 import { formatUserColumns, formatUsersData } from './Users.utils'
 import { UsersFooter } from './UsersFooter'
 import { UsersSearch } from './UsersSearch'
+import { UserJourneySheet } from '@/components/interfaces/UserJourneys/UserJourneySheet'
 import { AlertError } from '@/components/ui/AlertError'
 import { ButtonTooltip } from '@/components/ui/ButtonTooltip'
 import { FilterPopover } from '@/components/ui/FilterPopover'
@@ -155,6 +156,10 @@ export const UsersV2 = () => {
   )
   const [selectedId, setSelectedId] = useQueryState(
     'show',
+    parseAsString.withOptions({ history: 'push', clearOnDefault: true })
+  )
+  const [journeyIdentifier, setJourneyIdentifier] = useQueryState(
+    'journey',
     parseAsString.withOptions({ history: 'push', clearOnDefault: true })
   )
 
@@ -373,6 +378,12 @@ export const UsersV2 = () => {
     }
   }
 
+  const onSelectViewJourney = (user: User) => {
+    const identifier = user.email || user.id
+    if (!identifier) return
+    setJourneyIdentifier(identifier)
+  }
+
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
     const isScrollingHorizontally = xScroll.current !== event.currentTarget.scrollLeft
     xScroll.current = event.currentTarget.scrollLeft
@@ -482,6 +493,7 @@ export const UsersV2 = () => {
         setSortByValue: updateSortByValue,
         onSelectDeleteUser: setSelectedUserToDelete,
         onSelectImpersonateUser,
+        onSelectViewJourney,
       })
       setColumns(columns)
       if (columns.length < userTableColumns.length) {
@@ -716,6 +728,7 @@ export const UsersV2 = () => {
                       setSortByValue: updateSortByValue,
                       onSelectDeleteUser: setSelectedUserToDelete,
                       onSelectImpersonateUser,
+                      onSelectViewJourney,
                     })
 
                     setSelectedColumns(value)
@@ -875,6 +888,13 @@ export const UsersV2 = () => {
           specificFilterColumn={specificFilterColumn}
         />
       </div>
+
+      <UserJourneySheet
+        identifier={journeyIdentifier}
+        onOpenChange={(open) => {
+          if (!open) setJourneyIdentifier(null)
+        }}
+      />
 
       <ConfirmationModal
         visible={showDeleteModal}
