@@ -8,8 +8,10 @@ import { BRAND_OPTIONS, DEFAULT_BRAND_ID, type BrandId } from '@/lib/design/bran
 import { DEFAULT_FORMAT_ID, FORMAT_OPTIONS, getFormat, type FormatId } from '@/lib/design/formats'
 import {
   DEFAULT_NEWSLETTER_TEMPLATE_ID,
+  DEFAULT_SOCIAL_TEMPLATE_ID,
   DEFAULT_TEMPLATE_ID,
   NEWSLETTER_TEMPLATES,
+  SOCIAL_TEMPLATES,
   TEMPLATES,
 } from '@/lib/design/templates'
 import { IN_CONTEXT_OPTS, InContextPreview, type InContextMode } from './InContextPreview'
@@ -123,6 +125,7 @@ function LayoutThumb({ id }: { id: string }) {
           <div className="absolute right-1.5 top-1/2 -translate-y-1/2">{iconBox}</div>
         </div>
       )
+    case 'social-instagram':
     case 'centered':
       return (
         <div className="relative h-full w-full">
@@ -145,6 +148,7 @@ function LayoutThumb({ id }: { id: string }) {
         </div>
       )
     case 'newsletter-cover':
+    case 'social-twitter':
     case 'bottom-left':
     default:
       return (
@@ -401,9 +405,10 @@ export default function Page() {
   const [formatId, setFormatId] = useState<FormatId>(DEFAULT_FORMAT_ID)
   const format = useMemo(() => getFormat(formatId), [formatId])
   const hasThumb = !!format.thumb
-  // Newsletter has its own two-tile layout set (cover / section header)
-  // instead of the standard 4 templates.
-  const activeTemplates = formatId === 'newsletter' ? NEWSLETTER_TEMPLATES : TEMPLATES
+  // Newsletter and Social each have their own two-tile layout set instead
+  // of the standard 4 templates.
+  const activeTemplates =
+    formatId === 'newsletter' ? NEWSLETTER_TEMPLATES : formatId === 'twitter' ? SOCIAL_TEMPLATES : TEMPLATES
 
   const [view, setView] = useState<View>('both')
   const [headline, setHeadline] = useState('Postgres full text search just got faster')
@@ -427,11 +432,17 @@ export default function Page() {
       .catch(() => {})
   }, [brandId])
 
-  // Newsletter swaps in its own layout set — reset to a valid default when
-  // the active template isn't in the set the current format offers.
+  // Newsletter/Social swap in their own layout sets — reset to a valid
+  // default when the active template isn't in the set the current format offers.
   useEffect(() => {
     if (!activeTemplates.some((t) => t.id === template)) {
-      setTemplate(formatId === 'newsletter' ? DEFAULT_NEWSLETTER_TEMPLATE_ID : DEFAULT_TEMPLATE_ID)
+      setTemplate(
+        formatId === 'newsletter'
+          ? DEFAULT_NEWSLETTER_TEMPLATE_ID
+          : formatId === 'twitter'
+            ? DEFAULT_SOCIAL_TEMPLATE_ID
+            : DEFAULT_TEMPLATE_ID
+      )
     }
   }, [formatId, activeTemplates, template])
 

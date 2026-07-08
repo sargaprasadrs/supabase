@@ -210,9 +210,70 @@ export const NEWSLETTER_TEMPLATES: Template[] = [
   },
 ]
 
+/**
+ * Social-only layouts (brief follow-up) — a centered composition suited to
+ * Instagram's square-crop feeds, and the classic bottom-left card layout
+ * that's how X/Twitter link previews are actually presented. Kept out of
+ * TEMPLATES for the same reason as the Newsletter set; swapped in only when
+ * the Social format is selected.
+ */
+export const SOCIAL_TEMPLATES: Template[] = [
+  {
+    id: 'social-instagram',
+    label: 'Instagram',
+    // Narrower box for the tighter, more square-cropped feed presentation.
+    headlineBox: (format) => Math.round(format.width * 0.75),
+    textAlign: 'center',
+    anchorX: 'center',
+    anchorY: 'center',
+    build: (p) => (
+      <div
+        style={{
+          ...rootBase(p),
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+        }}
+      >
+        {p.hasIcon ? (
+          <div style={{ display: 'flex', marginBottom: 36 * p.scaleFactor }}>{p.iconEl}</div>
+        ) : null}
+        {p.textBlock}
+      </div>
+    ),
+  },
+  {
+    id: 'social-twitter',
+    label: 'Twitter / X',
+    headlineBox: fullHeadlineBoxWidth,
+    textAlign: 'left',
+    anchorX: 'left',
+    anchorY: 'bottom',
+    build: (p) => (
+      <div
+        style={{
+          ...rootBase(p),
+          flexDirection: 'column',
+          justifyContent: p.hasIcon ? 'space-between' : 'flex-end',
+          alignItems: 'flex-start',
+        }}
+      >
+        {p.hasIcon ? (
+          <div style={{ display: 'flex', width: p.W - p.padX * 2, justifyContent: 'flex-end' }}>
+            {p.iconEl}
+          </div>
+        ) : null}
+        {p.textBlock}
+      </div>
+    ),
+  },
+]
+
 export const TEMPLATE_MAP: Record<string, Template> = Object.fromEntries(
-  [...TEMPLATES, ...NEWSLETTER_TEMPLATES].map((t) => [t.id, t])
+  [...TEMPLATES, ...NEWSLETTER_TEMPLATES, ...SOCIAL_TEMPLATES].map((t) => [t.id, t])
 )
 
 export const DEFAULT_TEMPLATE_ID = 'bottom-left'
 export const DEFAULT_NEWSLETTER_TEMPLATE_ID = 'newsletter-cover'
+export const DEFAULT_SOCIAL_TEMPLATE_ID = 'social-twitter'
