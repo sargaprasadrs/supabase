@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // §4 — that's the renderer's design tokens, independent of this chrome theme.)
   return (
     <html lang="en" className="light">
-      <body className="min-h-screen bg-background text-foreground antialiased">{children}</body>
+      <body className="h-full bg-background text-foreground antialiased">{children}</body>
     </html>
   )
 }

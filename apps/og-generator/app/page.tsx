@@ -434,7 +434,7 @@ export default function Page() {
   const suffix = scale === 2 ? '@2x' : ''
 
   return (
-    <div className="relative h-screen overflow-hidden bg-background text-foreground">
+    <div className="relative h-full overflow-hidden bg-background text-foreground">
       {/* Canvas — one continuous full-bleed dot-grid surface; the tool panel
           floats on top of it (absolutely positioned), not beside it. */}
       <main

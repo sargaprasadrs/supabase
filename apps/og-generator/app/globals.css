@@ -6,3 +6,12 @@
 
 /* Tell Tailwind v4 where to scan for utility classes in this app. */
 @source './**/*.{ts,tsx}';
+
+/* Full-height chain from the real document root down to our editor's own
+ * `h-full` wrapper. `100vh` alone can end up taller than the actual visible
+ * area in embedded/iframe previews (mobile browser chrome has the same
+ * problem) — an unbroken `height: 100%` chain is the reliable fix. */
+html,
+body {
+  height: 100%;
+}
