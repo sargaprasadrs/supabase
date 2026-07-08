@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronRight, Inbox } from 'lucide-react'
+import { AlertTriangle, Archive, ArchiveRestore, ChevronRight, Inbox } from 'lucide-react'
 import { Badge, Button, cn } from 'ui'
 import { GenericSkeletonLoader } from 'ui-patterns/ShimmeringLoader'
 
@@ -13,6 +13,7 @@ import {
   tabIconMap,
 } from './AdvisorPanel.utils'
 import { EmptyAdvisor } from './EmptyAdvisor'
+import { ButtonTooltip } from '@/components/ui/ButtonTooltip'
 import type { Notification } from '@/data/notifications/notifications-v2-query'
 import type { AdvisorSeverity, AdvisorTab } from '@/state/advisor-state'
 
@@ -37,6 +38,7 @@ interface AdvisorPanelBodyProps {
   activeTab: AdvisorTab
   severityFilters: AdvisorSeverity[]
   onItemClick: (item: AdvisorItem) => void
+  onArchiveNotification?: (item: AdvisorItem) => void
   onClearFilters: () => void
   hiddenItemsCount: number
   hasAnyFilters: boolean
@@ -51,6 +53,7 @@ export const AdvisorPanelBody = ({
   activeTab,
   severityFilters,
   onItemClick,
+  onArchiveNotification,
   onClearFilters,
   hiddenItemsCount,
   hasAnyFilters,
@@ -101,6 +104,13 @@ export const AdvisorPanelBody = ({
           const isNotification = item.source === 'notification'
           const notification = isNotification ? (item.original as Notification) : null
           const isUnread = notification?.status === 'new'
+          const isArchived = notification?.status === 'archived'
+          const canArchive = isNotification && onArchiveNotification !== undefined
+          const archiveLabel = !canArchive
+            ? 'This issue cannot be archived and must be addressed'
+            : isArchived
+              ? 'Unarchive'
+              : 'Archive'
 
           const primaryText = getAdvisorPanelItemDisplayTitle(item)
           const secondaryText = getAdvisorItemSecondaryText(item, projectNameByRef)
@@ -111,11 +121,11 @@ export const AdvisorPanelBody = ({
           const metadataCapitalize = secondaryText === undefined && item.createdAt !== undefined
 
           return (
-            <div key={`${item.source}-${item.id}`} className="border-b">
+            <div key={`${item.source}-${item.id}`} className="relative border-b">
               <Button
                 variant="text"
                 className={cn(
-                  'justify-start w-full block rounded-none h-auto py-3 px-4 hover:text-foreground',
+                  'justify-start w-full block rounded-none h-auto py-3 pl-4 pr-16 hover:text-foreground',
                   isUnread && 'bg-surface-100/50'
                 )}
                 onClick={() => onItemClick(item)}
@@ -140,20 +150,41 @@ export const AdvisorPanelBody = ({
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {item.severity === 'critical' && (
-                      <Badge variant={severityBadgeVariants[item.severity]}>
-                        {severityLabels[item.severity]}
-                      </Badge>
-                    )}
-                    <ChevronRight
-                      size={16}
-                      strokeWidth={1.5}
-                      className="shrink-0 text-foreground-lighter"
-                    />
-                  </div>
+                  {item.severity === 'critical' && (
+                    <Badge variant={severityBadgeVariants[item.severity]} className="shrink-0">
+                      {severityLabels[item.severity]}
+                    </Badge>
+                  )}
                 </div>
               </Button>
+              <div className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                <ButtonTooltip
+                  variant="text"
+                  disabled={!canArchive}
+                  aria-label={archiveLabel}
+                  className={cn('pointer-events-auto h-7 w-7 p-0', !canArchive && 'opacity-30')}
+                  icon={
+                    canArchive && isArchived ? (
+                      <ArchiveRestore size={16} strokeWidth={1.5} />
+                    ) : (
+                      <Archive size={16} strokeWidth={1.5} />
+                    )
+                  }
+                  onClick={canArchive ? () => onArchiveNotification?.(item) : undefined}
+                  tooltip={{
+                    content: {
+                      side: 'bottom',
+                      className: canArchive ? undefined : 'w-52 text-center',
+                      text: archiveLabel,
+                    },
+                  }}
+                />
+                <ChevronRight
+                  size={16}
+                  strokeWidth={1.5}
+                  className="shrink-0 text-foreground-lighter"
+                />
+              </div>
             </div>
           )
         })}

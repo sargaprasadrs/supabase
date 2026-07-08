@@ -1,5 +1,6 @@
-import { X } from 'lucide-react'
-import { Tabs, TabsList, TabsTrigger } from 'ui'
+import { ListFilter, X } from 'lucide-react'
+import { useState } from 'react'
+import { cn, Tabs, TabsList, TabsTrigger } from 'ui'
 
 import { ButtonTooltip } from '@/components/ui/ButtonTooltip'
 import { FilterPopover } from '@/components/ui/FilterPopover'
@@ -37,9 +38,12 @@ export const AdvisorFilters = ({
   onClose,
   isPlatform = false,
 }: AdvisorFiltersProps) => {
+  const hasActiveFilters = severityFilters.length > 0 || statusFilters.length > 0
+  const [showFilters, setShowFilters] = useState(hasActiveFilters)
+
   return (
-    <div className="border-b overflow-x-auto">
-      <div className="flex items-center justify-between gap-x-4 h-[calc(var(--header-height)-1px)]">
+    <div className="border-b">
+      <div className="flex items-center justify-between gap-x-4 h-[calc(var(--header-height)-1px)] overflow-x-auto">
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full pl-4">
           <TabsList className="border-b-0 gap-4 h-full">
             <TabsTrigger value="all" className="h-full text-xs">
@@ -59,6 +63,25 @@ export const AdvisorFilters = ({
           </TabsList>
         </Tabs>
         <div className="flex items-center gap-x-2 pr-3">
+          <ButtonTooltip
+            variant="text"
+            className={cn('w-7 h-7 p-0', showFilters && 'text-foreground bg-surface-300')}
+            icon={<ListFilter strokeWidth={1.5} />}
+            onClick={() => setShowFilters((value) => !value)}
+            aria-label="Toggle filters"
+            tooltip={{ content: { side: 'bottom', text: 'Filter' } }}
+          />
+          <ButtonTooltip
+            variant="text"
+            className="w-7 h-7 p-0"
+            icon={<X strokeWidth={1.5} />}
+            onClick={onClose}
+            tooltip={{ content: { side: 'bottom', text: 'Close Advisor Center' } }}
+          />
+        </div>
+      </div>
+      {showFilters && (
+        <div className="flex items-center gap-2 border-t px-4 py-2">
           {isPlatform && (
             <FilterPopover
               name="Status"
@@ -77,19 +100,10 @@ export const AdvisorFilters = ({
             valueKey="value"
             labelKey="label"
             isMinimized={true}
-            onSaveFilters={(values) => {
-              onSeverityFiltersChange(values as AdvisorSeverity[])
-            }}
-          />
-          <ButtonTooltip
-            variant="text"
-            className="w-7 h-7 p-0"
-            icon={<X strokeWidth={1.5} />}
-            onClick={onClose}
-            tooltip={{ content: { side: 'bottom', text: 'Close Advisor Center' } }}
+            onSaveFilters={(values) => onSeverityFiltersChange(values as AdvisorSeverity[])}
           />
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -231,6 +231,14 @@ export const AdvisorPanel = () => {
     updateNotifications({ ids: [id], status })
   }
 
+  const handleArchiveNotification = (item: AdvisorItem) => {
+    if (item.source !== 'notification') return
+    const notification = item.original as Notification
+    const nextStatus = notification.status === 'archived' ? 'seen' : 'archived'
+    markedRead.current = markedRead.current.filter((id) => id !== notification.id)
+    updateNotifications({ ids: [notification.id], status: nextStatus })
+  }
+
   const handleClearAllFilters = () => {
     clearSeverityFilters()
     resetNotificationFilters()
@@ -291,6 +299,7 @@ export const AdvisorPanel = () => {
               activeTab={activeTab}
               severityFilters={[...severityFilters]}
               onItemClick={handleItemClick}
+              onArchiveNotification={handleArchiveNotification}
               onClearFilters={handleClearAllFilters}
               hiddenItemsCount={hiddenItemsCount}
               hasAnyFilters={hasAnyFilters}
