@@ -20,7 +20,7 @@ export const BannerCriticalNotification = ({
   const message = data.message?.replace(/[#*_`[\]]/g, '').trim()
 
   return (
-    <BannerCard variant="critical">
+    <BannerCard variant="critical" onDismiss={onArchive}>
       <div className="flex flex-col gap-y-4">
         <div className="flex flex-col gap-y-2 items-start">
           <div className="p-2 rounded-lg bg-destructive-200 text-destructive">
@@ -31,7 +31,7 @@ export const BannerCriticalNotification = ({
           <Badge variant="destructive" className="w-min uppercase">
             Critical
           </Badge>
-          <p className="text-sm font-medium">{title}</p>
+          <p className="text-sm font-medium pr-6">{title}</p>
           {message ? (
             <p className="text-xs text-foreground-lighter text-balance line-clamp-3">{message}</p>
           ) : null}
@@ -39,9 +39,6 @@ export const BannerCriticalNotification = ({
         <div className="flex gap-2">
           <Button variant="default" size="tiny" onClick={onViewDetails}>
             View details
-          </Button>
-          <Button variant="outline" size="tiny" onClick={onArchive}>
-            Archive
           </Button>
         </div>
       </div>

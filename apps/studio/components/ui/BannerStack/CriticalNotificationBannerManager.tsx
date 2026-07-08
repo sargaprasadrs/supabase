@@ -23,7 +23,7 @@ export const CriticalNotificationBannerManager = () => {
   const router = useRouter()
   const track = useTrack()
   const { addBanner, dismissBanner } = useBannerStack()
-  const { toggleSidebar } = useSidebarManagerSnapshot()
+  const { openSidebar } = useSidebarManagerSnapshot()
   const { mutate: updateNotifications } = useNotificationsV2UpdateMutation()
   const activeBannerIdsRef = useRef(new Set<string>())
 
@@ -88,13 +88,17 @@ export const CriticalNotificationBannerManager = () => {
                 tab: 'messages',
                 source: 'notification',
               })
-              toggleSidebar(SIDEBAR_KEYS.ADVISOR_PANEL)
+              openSidebar(SIDEBAR_KEYS.ADVISOR_PANEL)
+              // Once the user is looking at the item in the panel, retire the loud
+              // banner for the session (without archiving — the inbox entry stays).
+              addSessionDismissedCriticalNotificationId(notification.id)
+              dismissBanner(bannerId)
             }}
           />
         ),
       })
     })
-  }, [surfacedNotifications, addBanner, dismissBanner, track, toggleSidebar, updateNotifications])
+  }, [surfacedNotifications, addBanner, dismissBanner, track, openSidebar, updateNotifications])
 
   return null
 }
