@@ -23,6 +23,7 @@ import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 
 import { readEnvFiles } from './lib/env.js'
+import { initServerSentry, wrapFetchHandler } from './lib/sentry-server.js'
 
 const studioRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const clientDir = path.join(studioRoot, 'dist/client')
@@ -39,7 +40,14 @@ for (const [k, v] of Object.entries(parsed)) {
   )
 }
 
-const { default: handler } = await import(path.join(studioRoot, 'dist/server/server.js'))
+// Init after the env files are merged into process.env (that's where the DSN
+// comes from) but before the SSR bundle import so the SDK is in place when
+// app code loads. No-op when NEXT_PUBLIC_SENTRY_DSN is unset (self-hosted
+// deployments without Sentry).
+initServerSentry()
+
+const { default: ssrHandler } = await import(path.join(studioRoot, 'dist/server/server.js'))
+const handler = wrapFetchHandler(ssrHandler)
 
 const mimeByExt = new Map([
   ['.js', 'application/javascript; charset=utf-8'],
@@ -164,22 +172,9 @@ async function pipeWebResponse(response, res) {
   })
 }
 
-// Security headers for the self-hosted server. Mirrors the non-platform branch
-// of next.config.ts `headers()` (self-hosted is always IS_PLATFORM=false, so the
-// CSP is just `frame-ancestors 'none'` and there's no HSTS). The platform CSP is
-// applied at the edge via vercel.ts instead; see security-headers.ts. Set before
-// any response is written so both the static and handler paths inherit them.
-const SECURITY_HEADERS = [
-  ['X-Frame-Options', 'DENY'],
-  ['X-Content-Type-Options', 'no-sniff'],
-  ['Content-Security-Policy', "frame-ancestors 'none';"],
-  ['Referrer-Policy', 'strict-origin-when-cross-origin'],
-]
-
 const port = Number(process.env.PORT || 8082)
 createServer(async (req, res) => {
   try {
-    for (const [key, value] of SECURITY_HEADERS) res.setHeader(key, value)
     if (await serveStatic(req, res)) return
     const response = await handler.fetch(toWebRequest(req))
     await pipeWebResponse(response, res)

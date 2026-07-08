@@ -9,6 +9,7 @@ blockExoticSubdeps: true
 catalog:
   '@monaco-editor/react': ^4.7.0
   '@sentry/nextjs': ^10.59.0
+  '@sentry/node': ^10.59.0
   '@supabase/auth-js': 2.108.2
   '@supabase/postgrest-js': 2.108.2
   '@supabase/realtime-js': 2.108.2

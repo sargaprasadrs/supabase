@@ -14,9 +14,18 @@ const isTanstack = process.env.STUDIO_FRAMEWORK === 'tanstack'
 // .includeFiles` config in vercel.ts.
 const tanstackEntry = ['..', 'dist', 'server', 'server.js'].join('/')
 
-const handler = isTanstack
-  ? (await import(tanstackEntry)).default
-  : { fetch: () => new Response('Not Found', { status: 404 }) }
+let handler
+if (isTanstack) {
+  // Server-side Sentry (@sentry/node). Import + init are gated on isTanstack
+  // so nothing Sentry-related loads or runs in the inert Next.js deploy —
+  // Next initializes its own server SDK via instrumentation.ts. Init happens
+  // before the SSR bundle import so the SDK is in place when app code loads.
+  const { initServerSentry, wrapFetchHandler } = await import('../scripts/lib/sentry-server.js')
+  initServerSentry()
+  handler = wrapFetchHandler((await import(tanstackEntry)).default)
+} else {
+  handler = { fetch: () => new Response('Not Found', { status: 404 }) }
+}
 
 // Vercel's Web API handler convention: export an object with `fetch(request)`.
 // TanStack's server build is already shaped that way — default-export it
