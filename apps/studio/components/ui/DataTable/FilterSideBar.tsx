@@ -9,6 +9,7 @@ import { DataTableFilterControls } from './DataTableFilters/DataTableFilterContr
 import { DataTableResetButton } from './DataTableResetButton'
 import { useDataTable } from './providers/DataTableProvider'
 import { LOG_DRAIN_TYPES } from '@/components/interfaces/LogDrains/LogDrains.constants'
+import { UserLogFilterControl } from '@/components/interfaces/UnifiedLogs/components/UserLogFilterControl'
 import { UnifiedLogsBanner } from '@/components/interfaces/UnifiedLogs/UnifiedLogsBanner'
 
 interface FilterSideBarProps {
@@ -65,6 +66,7 @@ export function FilterSideBar({
       <UnifiedLogsBanner />
 
       <div className="flex-1 p-2 sm:overflow-y-scroll">
+        <UserLogFilterControl />
         <DataTableFilterControls dateRangeDisabled={dateRangeDisabled} />
         <FeaturePreviewSidebarPanel
           className="mx-2 my-4"
