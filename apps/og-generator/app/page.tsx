@@ -463,6 +463,51 @@ export default function Page() {
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [iconPickerOpen])
 
+  // "Z" toggles the zoom tool; Escape cancels it; Alt (while active) flips
+  // the cursor/click direction from zoom-in to zoom-out, matching
+  // Illustrator/Photoshop. Ignored while typing in a text field.
+  useEffect(() => {
+    const isTyping = (target: EventTarget | null) => {
+      const el = target as HTMLElement | null
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') {
+        setAltHeld(true)
+        return
+      }
+      if (isTyping(e.target)) return
+      if (e.key === 'Escape') {
+        setZoomToolActive(false)
+      } else if ((e.key === 'z' || e.key === 'Z') && !e.metaKey && !e.ctrlKey) {
+        setZoomToolActive((v) => !v)
+      }
+    }
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') setAltHeld(false)
+    }
+    // Alt can be released outside the window (e.g. after alt-tabbing) —
+    // clear the stuck state once focus returns.
+    const onBlur = () => setAltHeld(false)
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [])
+
+  const handleCanvasZoomClick = (e: React.MouseEvent) => {
+    if (!zoomToolActive) return
+    if (e.altKey) {
+      setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP))
+    } else {
+      setZoom((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP))
+    }
+  }
+
   const uploadSvg = async (file: File) => {
     setUploading(true)
     setUploadError(null)
@@ -537,6 +582,10 @@ export default function Page() {
   const ZOOM_MIN = 25
   const ZOOM_MAX = 200
   const ZOOM_STEP = 25
+  // "Z" zoom tool (brief follow-up, Illustrator/Photoshop-style): toggles a
+  // zoom cursor over the canvas; click to zoom in, Alt+click to zoom out.
+  const [zoomToolActive, setZoomToolActive] = useState(false)
+  const [altHeld, setAltHeld] = useState(false)
 
   const [copied, setCopied] = useState<View | null>(null)
 
@@ -606,10 +655,12 @@ export default function Page() {
           own siblings so they stay anchored regardless of scroll position. */}
       <main
         className="@container absolute inset-0 flex flex-col items-center overflow-auto p-8 pt-24 pb-24 pr-[380px]"
+        onClick={handleCanvasZoomClick}
         style={{
           backgroundColor: '#f4f4f5',
           backgroundImage: 'radial-gradient(rgba(0,0,0,0.06) 1px, transparent 1px)',
           backgroundSize: '16px 16px',
+          cursor: zoomToolActive ? (altHeld ? 'zoom-out' : 'zoom-in') : undefined,
         }}
       >
         {inContext === 'none' ? (
@@ -689,18 +740,40 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Canvas zoom — bottom-left corner, independent of the centered
-          toolbar. Scales the image cards themselves (via the row's width
-          style above), not the surrounding controls. */}
+      {/* Canvas zoom — bottom-right corner, independent of the centered
+          toolbar. Same height/padding as that toolbar so the two visually
+          center-align against the shared bottom-6 offset. Scales the image
+          cards themselves (via the row's width style above), not the
+          surrounding controls. */}
       {inContext === 'none' && (
-        <div className="pointer-events-none absolute bottom-6 left-8 z-10 flex">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-md border border-default bg-background px-1.5 py-1 shadow-lg">
+        <div className="pointer-events-none absolute bottom-6 right-[380px] z-10 flex">
+          <div
+            className={`pointer-events-auto flex items-center gap-2 rounded-md border px-3 py-2 shadow-lg ${
+              zoomToolActive ? 'border-brand bg-brand/10' : 'border-default bg-background'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setZoomToolActive((v) => !v)}
+              title="Zoom tool (Z) — click to zoom in, Alt+click to zoom out"
+              className={`flex h-7 w-7 items-center justify-center rounded ${
+                zoomToolActive ? 'bg-brand/20 text-brand' : 'text-foreground-light hover:text-foreground'
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+                <path d="M8 11h6" strokeLinecap="round" />
+                {!altHeld && <path d="M11 8v6" strokeLinecap="round" />}
+              </svg>
+            </button>
+            <div className="h-5 border-l border-default" />
             <button
               type="button"
               onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP))}
               disabled={zoom <= ZOOM_MIN}
               title="Zoom out"
-              className="flex h-6 w-6 items-center justify-center rounded text-foreground-light hover:text-foreground disabled:opacity-30"
+              className="flex h-7 w-7 items-center justify-center rounded text-foreground-light hover:text-foreground disabled:opacity-30"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M5 12h14" strokeLinecap="round" />
@@ -719,7 +792,7 @@ export default function Page() {
               onClick={() => setZoom((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP))}
               disabled={zoom >= ZOOM_MAX}
               title="Zoom in"
-              className="flex h-6 w-6 items-center justify-center rounded text-foreground-light hover:text-foreground disabled:opacity-30"
+              className="flex h-7 w-7 items-center justify-center rounded text-foreground-light hover:text-foreground disabled:opacity-30"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M12 5v14M5 12h14" strokeLinecap="round" />
