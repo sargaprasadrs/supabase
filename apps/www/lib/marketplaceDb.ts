@@ -245,7 +245,6 @@ async function getPartnerFromMarketplace(slug: string): Promise<Partner | null> 
       .from('catalog_listings')
       .select('*')
       .eq('slug', listingSlugForOverride)
-      .not('published_in_catalog_at', 'is', null)
       .maybeSingle()
 
     if (!listing) return null
@@ -333,16 +332,12 @@ async function getPartnerSlugsFromMarketplace(): Promise<string[]> {
   const [{ data: catalogListingRows }, { data: overriddenRows }] = await Promise.all([
     // Derive partner slugs from catalog-published listings, not the raw partners table —
     // a partner with no catalog-published listing isn't part of the Partner Catalog.
-    marketplaceClient
-      .from('listings')
-      .select('partner_slug')
-      .not('published_in_catalog_at', 'is', null),
+    marketplaceClient.from('catalog_listings').select('partner_slug'),
     // Fetch overridden listing slugs directly by listing slug (not by partner_slug).
     marketplaceClient
-      .from('listings')
+      .from('catalog_listings')
       .select('slug')
-      .in('slug', Object.keys(SUPABASE_LISTING_OVERRIDES))
-      .not('published_in_catalog_at', 'is', null),
+      .in('slug', Object.keys(SUPABASE_LISTING_OVERRIDES)),
   ])
 
   // Exclude 'supabase', any slug covered by an override, and pre-launch partners.
