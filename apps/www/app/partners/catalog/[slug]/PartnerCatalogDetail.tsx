@@ -63,7 +63,7 @@ export default function PartnerCatalogDetail({ partner, serializedListings }: Pr
   const activeListing = allListings.find((l) => l.slug === activeSlug) ?? allListings[0]
   const activeTabIndex = allListings.indexOf(activeListing)
   const activeOverview = serializedListings[activeTabIndex] ?? serializedListings[0]
-  // Marketplace integrations link to the Supabase dashboard; others use installUrl if provided.
+  // Dashboard Integrations link to the Supabase dashboard; others use installUrl if provided.
   const INSTALL_HREF_BLOCKLIST = [
     'aikido',
     'aikido-security',

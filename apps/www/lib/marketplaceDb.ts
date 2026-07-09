@@ -36,10 +36,10 @@ const URL_SLUG_TO_LISTING: Record<string, string> = Object.fromEntries(
   Object.entries(SUPABASE_LISTING_OVERRIDES).map(([listingSlug, { slug }]) => [slug, listingSlug])
 )
 
-// Only FDW wrappers need the dashboard marketplace treatment (install button + dashboard URL).
+// Only FDW wrappers need the Dashboard Integration treatment (install button + dashboard URL).
 const MARKETPLACE_SLUGS = ['bigquery-wrapper', 'firebase-wrapper', 'stripe-wrapper']
 
-/** Returns true if a listing is in the Supabase Marketplace. */
+/** Returns true if a listing should be treated as a Dashboard Integration. */
 export function isMarketplaceListing(listing: Listing): boolean {
   if (MARKETPLACE_SLUGS.includes(listing.slug)) return true
   return false
@@ -82,7 +82,7 @@ function aggregateCategories(listings: Listing[]): Category[] {
 
 /**
  * Picks the listing to use for narrative content (description, docs, images…).
- * Prefers a marketplace-published listing, then a dashboard-published one, then any.
+ * Prefers a Partner Catalog-published listing, then a Dashboard Integration-published one, then any.
  */
 function selectPrimaryListing(listings: Listing[]): Listing | undefined {
   return (
@@ -120,7 +120,7 @@ function buildPartner(row: MarketplacePartnerRow, listings: Listing[]): Partner 
     categories: aggregateCategories(listings),
     featured: listings.some((l) => l.featured),
     publishedInCatalog: listings.some((l) => !!l.published_in_catalog_at),
-    // FDW listings count as "Available in Marketplace" even without publish_dashboard.
+    // FDW listings count as a Dashboard Integration even without publish_dashboard.
     publishedInMarketplace: listings.some(
       (l) => !!l.published_in_marketplace_at || isMarketplaceListing(l)
     ),
@@ -404,7 +404,7 @@ async function searchPartnersFromMarketplace(search: string): Promise<Partner[] 
 
 // ---------------------------------------------------------------------------
 // Catalog API — always uses the marketplace DB directly, independent of isUseMarketplaceDb.
-// The Partner Catalog is a marketplace-specific feature; the legacy misc DB does not carry
+// The Partner Catalog is backed by the marketplace DB; the legacy misc DB does not carry
 // the listings (BigQuery/Firebase/Stripe FDW integrations, etc.) that the catalog needs.
 // ---------------------------------------------------------------------------
 
@@ -418,9 +418,9 @@ export const listCatalogPartnerSlugs = getPartnerSlugsFromMarketplace
 // ---------------------------------------------------------------------------
 
 /**
- * Lists all partner marketplace entries for the public website, from the configured database.
- * Returns one entry per partner company, with categories and marketplace flags aggregated
- * across all of that partner's listings.
+ * Lists all partner entries for the public website, from the configured database.
+ * Returns one entry per partner company, with categories and Dashboard Integration flags
+ * aggregated across all of that partner's listings.
  */
 export async function listPartners(): Promise<Partner[]> {
   if (isUseMarketplaceDb) {
