@@ -33,7 +33,6 @@ import { DownloadLogsButton } from './components/DownloadLogsButton'
 import { LogsFilterBar } from './components/LogsFilterBar'
 import { LogsListPanel } from './components/LogsListPanel'
 import { TooltipLabel } from './components/TooltipLabel'
-import { UserLogFilterNotice } from './components/UserLogFilterNotice'
 import { RowSelectionHeader } from './RowSelectionHeader'
 import { ServiceFlowPanel } from './ServiceFlowPanel'
 import { SEARCH_PARAMS_PARSER } from './UnifiedLogs.constants'
@@ -440,15 +439,6 @@ export const UnifiedLogs = () => {
                 />
               )}
             </div>
-
-            {search.user ? (
-              <UserLogFilterNotice
-                className="mx-2 mt-2"
-                identifier={search.user}
-                isEmpty={!isLoading && !isFetching && filterDBRowCount === 0}
-                onClear={() => setSearch({ user: null })}
-              />
-            ) : null}
 
             <RowSelectionHeader />
 
