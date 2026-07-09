@@ -15,7 +15,7 @@ export type Database = MergeDeep<
   {
     public: {
       Views: {
-        listings: {
+        catalog_listings: {
           Row: {
             // add a type for the JSON structure
             categories: Category[]
@@ -31,6 +31,7 @@ export type Database = MergeDeep<
             website_url: string
             documentation_url: string
             listing_logo: string
+            published_in_marketplace: boolean
           }
         }
         marketplace_listings: {
@@ -56,7 +57,7 @@ export type Database = MergeDeep<
   }
 >
 
-export type Listing = Database['public']['Views']['listings']['Row']
+export type CatalogListing = Database['public']['Views']['catalog_listings']['Row']
 export type MarketplaceListing = Database['public']['Views']['marketplace_listings']['Row']
 export type Partner = Database['public']['Views']['partners']['Row']
 

@@ -1,5 +1,5 @@
 import type { Category, Partner } from '~/types/partners'
-import type { Listing } from 'common/marketplace-client'
+import type { CatalogListing } from 'common/marketplace-client'
 import Image from 'next/image'
 import Link from 'next/link'
 

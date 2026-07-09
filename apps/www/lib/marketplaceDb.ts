@@ -4,7 +4,11 @@ import {
   Partner,
   type Category,
 } from '~/types/partners'
-import { createMarketplaceClient, fullImageUrl, type Listing } from 'common/marketplace-client'
+import {
+  createMarketplaceClient,
+  fullImageUrl,
+  type CatalogListing,
+} from 'common/marketplace-client'
 
 import supabase from './supabaseMisc'
 
@@ -39,8 +43,8 @@ const URL_SLUG_TO_LISTING: Record<string, string> = Object.fromEntries(
 // Only FDW wrappers need the Dashboard Integration treatment (install button + dashboard URL).
 const MARKETPLACE_SLUGS = ['bigquery-wrapper', 'firebase-wrapper', 'stripe-wrapper']
 
-/** Returns true if a listing should be treated as a Dashboard Integration. */
-export function isMarketplaceListing(listing: Listing): boolean {
+/** Returns true if a listing is in the Supabase Marketplace. */
+export function isMarketplaceListing(listing: CatalogListing): boolean {
   if (MARKETPLACE_SLUGS.includes(listing.slug)) return true
   return false
 }
@@ -62,7 +66,7 @@ const PLAIN_INTEGRATION_SLUGS = new Set([
 const GUIDE_SLUGS = new Set(['resend'])
 
 /** Returns true if a listing is a Foreign Data Wrapper (FDW). */
-function isFdwListing(listing: Listing): boolean {
+function isFdwListing(listing: CatalogListing): boolean {
   return !!listing.categories?.some(
     (c) =>
       c.name.toLowerCase().includes('foreign data wrapper') || c.slug.toLowerCase().includes('fdw')
@@ -70,7 +74,7 @@ function isFdwListing(listing: Listing): boolean {
 }
 
 /** Deduplicates and merges categories from across all of a partner's listings. */
-function aggregateCategories(listings: Listing[]): Category[] {
+function aggregateCategories(listings: CatalogListing[]): Category[] {
   const seen = new Map<string, Category>()
   for (const listing of listings) {
     for (const cat of listing.categories ?? []) {
@@ -84,11 +88,12 @@ function aggregateCategories(listings: Listing[]): Category[] {
  * Picks the listing to use for narrative content (description, docs, images…).
  * Prefers a Partner Catalog-published listing, then a Dashboard Integration-published one, then any.
  */
-function selectPrimaryListing(listings: Listing[]): Listing | undefined {
+function selectPrimaryListing(listings: CatalogListing[]): CatalogListing | undefined {
   return (
-    listings.find((l) => !!l.published_in_catalog_at) ??
-    listings.find((l) => !!l.published_in_marketplace_at) ??
-    listings[0]
+    // The catalog_listings view only returns catalog-published listings now (explicitly so, but that was
+    // implicitly the case before) so this doesn't make a ton of sense.
+    //listings.find((l) => !!l.published_in_catalog_at) ??
+    listings.find((l) => l.published_in_marketplace) ?? listings[0]
   )
 }
 
@@ -101,7 +106,7 @@ type MarketplacePartnerRow = {
   type: 'technology' | 'expert' | null
 }
 
-function buildPartner(row: MarketplacePartnerRow, listings: Listing[]): Partner {
+function buildPartner(row: MarketplacePartnerRow, listings: CatalogListing[]): Partner {
   const primary = selectPrimaryListing(listings)
   return {
     slug: row.slug,
@@ -119,10 +124,11 @@ function buildPartner(row: MarketplacePartnerRow, listings: Listing[]): Partner 
     type: row.type ?? 'technology',
     categories: aggregateCategories(listings),
     featured: listings.some((l) => l.featured),
-    publishedInCatalog: listings.some((l) => !!l.published_in_catalog_at),
-    // FDW listings count as a Dashboard Integration even without publish_dashboard.
+    // the new view filters these
+    publishedInCatalog: true,
+    // FDW listings count as "Available in Marketplace" even without publish_dashboard.
     publishedInMarketplace: listings.some(
-      (l) => !!l.published_in_marketplace_at || isMarketplaceListing(l)
+      (l) => l.published_in_marketplace || isMarketplaceListing(l)
     ),
   }
 }
@@ -133,15 +139,14 @@ function buildPartner(row: MarketplacePartnerRow, listings: Listing[]): Partner 
 async function getPartnersFromMarketplace(): Promise<Partner[]> {
   const [{ data: partnersData }, { data: listingsData }] = await Promise.all([
     marketplaceClient.from('partners').select('*'),
-    // Only catalog-published listings count toward the Partner Catalog.
-    marketplaceClient.from('listings').select('*').not('published_in_catalog_at', 'is', null),
+    marketplaceClient.from('catalog_listings').select('*'),
   ])
 
   if (!partnersData?.length) return []
 
   // Check listing.slug first so the override works regardless of what partner_slug the DB has.
-  const overriddenListings = new Map<string, Listing>()
-  const byPartnerSlug = new Map<string, Listing[]>()
+  const overriddenListings = new Map<string, CatalogListing>()
+  const byPartnerSlug = new Map<string, CatalogListing[]>()
 
   for (const listing of listingsData ?? []) {
     if (listing.slug in SUPABASE_LISTING_OVERRIDES) {
@@ -211,10 +216,10 @@ async function getPartnersFromMarketplace(): Promise<Partner[]> {
  * "Foreign Data Wrapper" string, so partners with more than one FDW (e.g. Amazon's S3 and
  * Redshift wrappers) get distinct, identifiable tabs instead of two identical labels.
  */
-function getLabelForListing(listing: Listing): string {
+function getLabelForListing(listing: CatalogListing): string {
   if (isFdwListing(listing)) return listing.title || 'Foreign Data Wrapper'
   if (GUIDE_SLUGS.has(listing.slug)) return 'Guide'
-  if (!!listing.published_in_marketplace_at && !PLAIN_INTEGRATION_SLUGS.has(listing.slug))
+  if (listing.published_in_marketplace && !PLAIN_INTEGRATION_SLUGS.has(listing.slug))
     return 'Dashboard Integration'
   if (listing.marketplace_url || PLAIN_INTEGRATION_SLUGS.has(listing.slug)) return 'Integration'
   return 'Guide'
@@ -237,7 +242,7 @@ async function getPartnerFromMarketplace(slug: string): Promise<Partner | null> 
   if (listingSlugForOverride) {
     const override = SUPABASE_LISTING_OVERRIDES[listingSlugForOverride]
     const { data: listing } = await marketplaceClient
-      .from('listings')
+      .from('catalog_listings')
       .select('*')
       .eq('slug', listingSlugForOverride)
       .not('published_in_catalog_at', 'is', null)
@@ -263,10 +268,10 @@ async function getPartnerFromMarketplace(slug: string): Promise<Partner | null> 
           label: getLabelForListing(listing),
           content: listing.content,
           publishedInMarketplace:
-            !!listing.published_in_marketplace_at || isMarketplaceListing(listing),
+            !listing.published_in_marketplace || isMarketplaceListing(listing),
           installUrl: listing.marketplace_url ?? null,
           dashboardUrl:
-            !!listing.published_in_marketplace_at || isMarketplaceListing(listing)
+            !listing.published_in_marketplace || isMarketplaceListing(listing)
               ? `https://supabase.com/dashboard/project/_/integrations/${isFdwListing(listing) ? listing.slug.replaceAll('-', '_') : listing.slug}/overview`
               : null,
           docsUrl: listing.documentation_url || null,
@@ -279,12 +284,7 @@ async function getPartnerFromMarketplace(slug: string): Promise<Partner | null> 
 
   const [{ data: partnerData }, { data: listingsData }] = await Promise.all([
     marketplaceClient.from('partners').select('*').eq('slug', slug).maybeSingle(),
-    // Only catalog-published listings count toward the Partner Catalog.
-    marketplaceClient
-      .from('listings')
-      .select('*')
-      .eq('partner_slug', slug)
-      .not('published_in_catalog_at', 'is', null),
+    marketplaceClient.from('catalog_listings').select('*').eq('partner_slug', slug),
   ])
 
   const partnerSlug = partnerData?.slug
@@ -298,10 +298,10 @@ async function getPartnerFromMarketplace(slug: string): Promise<Partner | null> 
     slug: listing.slug,
     label: getLabelForListing(listing),
     content: listing.content,
-    publishedInMarketplace: !!listing.published_in_marketplace_at || isMarketplaceListing(listing),
+    publishedInMarketplace: listing.published_in_marketplace || isMarketplaceListing(listing),
     installUrl: listing.marketplace_url ?? null,
     dashboardUrl:
-      !!listing.published_in_marketplace_at || isMarketplaceListing(listing)
+      listing.published_in_marketplace || isMarketplaceListing(listing)
         ? `https://supabase.com/dashboard/project/_/integrations/${isFdwListing(listing) ? listing.slug.replaceAll('-', '_') : listing.slug}/overview`
         : null,
     docsUrl: listing.documentation_url || null,
@@ -369,6 +369,10 @@ async function getPartnerSlugsFromMarketplace(): Promise<string[]> {
  */
 async function searchPartnersFromMarketplace(search: string): Promise<Partner[] | null> {
   const searchTerm = search.trim()
+  let query = marketplaceClient
+    .from('catalog_listings')
+    .select('*')
+    .not('published_in_catalog_at', 'is', null)
 
   if (!searchTerm) return getPartnersFromMarketplace()
 
@@ -407,7 +411,7 @@ async function searchPartnersFromMarketplace(search: string): Promise<Partner[] 
   }
 
   // Use clean URL slug as map key for overridden listings.
-  const byPartnerSlug = new Map<string, Listing[]>()
+  const byPartnerSlug = new Map<string, CatalogListing[]>()
   for (const listing of data ?? []) {
     if (listing.slug in SUPABASE_LISTING_OVERRIDES) {
       byPartnerSlug.set(SUPABASE_LISTING_OVERRIDES[listing.slug].slug, [listing])

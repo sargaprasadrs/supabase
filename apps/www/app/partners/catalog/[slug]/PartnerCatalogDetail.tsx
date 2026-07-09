@@ -63,15 +63,8 @@ export default function PartnerCatalogDetail({ partner, serializedListings }: Pr
   const activeListing = allListings.find((l) => l.slug === activeSlug) ?? allListings[0]
   const activeTabIndex = allListings.indexOf(activeListing)
   const activeOverview = serializedListings[activeTabIndex] ?? serializedListings[0]
-  // Dashboard Integrations link to the Supabase dashboard; others use installUrl if provided.
-  const INSTALL_HREF_BLOCKLIST = [
-    'aikido',
-    'aikido-security',
-    'grafana',
-    'doppler',
-    'resend',
-    'stripe-sync-engine',
-  ]
+  // Marketplace integrations link to the Supabase dashboard; others use installUrl if provided.
+  const INSTALL_HREF_BLOCKLIST = ['aikido-security', 'stripe-sync-engine']
   const installHref = INSTALL_HREF_BLOCKLIST.includes(partner.slug)
     ? undefined
     : activeListing.publishedInMarketplace
