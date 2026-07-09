@@ -207,7 +207,7 @@ export const TableList = ({
     {
       projectRef: project?.ref,
       connectionString: project?.connectionString,
-      schema: selectedSchema,
+      schemas: [selectedSchema],
     },
     {
       select(views) {
@@ -228,7 +228,7 @@ export const TableList = ({
     {
       projectRef: project?.ref,
       connectionString: project?.connectionString,
-      schema: selectedSchema,
+      schemas: [selectedSchema],
     },
     {
       select(materializedViews) {
@@ -251,7 +251,7 @@ export const TableList = ({
     {
       projectRef: project?.ref,
       connectionString: project?.connectionString,
-      schema: selectedSchema,
+      schemas: [selectedSchema],
     },
     {
       select(foreignTables) {
