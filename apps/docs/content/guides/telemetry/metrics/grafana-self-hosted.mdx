@@ -18,7 +18,7 @@ Otherwise, use our [Grafana Cloud integration](/docs/guides/telemetry/metrics/gr
 
 1. **Prometheus** scrapes `https://<project-ref>.supabase.co/customer/v1/privileged/metrics` every minute using HTTP Basic Auth.
 2. **Grafana** reads from Prometheus and renders dashboards/alerts.
-3. **Prometheus AlertManager ** or your preferred system sends notifications when Prometheus rules fire (optional) .
+3. **Prometheus Alertmanager** or your preferred system sends notifications when Prometheus rules fire (optional) .
 
 ## 1. Deploy Prometheus
 
