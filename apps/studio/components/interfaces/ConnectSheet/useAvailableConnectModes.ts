@@ -1,9 +1,16 @@
+import { useParams } from 'common'
 import { useMemo } from 'react'
 
 import type { ConnectMode } from './Connect.types'
+import { useWarehouseProjectState } from '@/components/interfaces/Database/Warehouse/warehouseDemoStore'
 import { useIsFeatureEnabled } from '@/hooks/misc/useIsFeatureEnabled'
+import { useIsWarehouseEnabled } from '@/hooks/misc/useIsWarehouseEnabled'
 
 export function useAvailableConnectModes(): ConnectMode[] {
+  const { ref: projectRef } = useParams()
+  const isWarehouseFeatureEnabled = useIsWarehouseEnabled()
+  const warehouseState = useWarehouseProjectState(projectRef)
+  const warehouseProjectEnabled = warehouseState.enabled
   const {
     projectConnectionShowAppFrameworks: showAppFrameworks,
     projectConnectionShowMobileFrameworks: showMobileFrameworks,
@@ -21,7 +28,14 @@ export function useAvailableConnectModes(): ConnectMode[] {
       { id: 'direct', enabled: true },
       { id: 'orm', enabled: showOrms },
       { id: 'mcp', enabled: true },
+      { id: 'warehouse', enabled: isWarehouseFeatureEnabled && warehouseProjectEnabled },
     ]
     return allModes.filter((m) => m.enabled).map((m) => m.id)
-  }, [showAppFrameworks, showMobileFrameworks, showOrms])
+  }, [
+    showAppFrameworks,
+    showMobileFrameworks,
+    showOrms,
+    isWarehouseFeatureEnabled,
+    warehouseProjectEnabled,
+  ])
 }

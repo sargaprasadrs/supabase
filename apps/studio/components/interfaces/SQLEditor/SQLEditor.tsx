@@ -56,6 +56,7 @@ import {
   isUpdateWithoutWhere,
   suffixWithLimit,
 } from './SQLEditor.utils'
+import { useSqlQueryTarget } from './SqlWarehouseTargetToggle'
 import { useAddDefinitions } from './useAddDefinitions'
 import { UtilityPanel } from './UtilityPanel/UtilityPanel'
 import {
@@ -129,6 +130,7 @@ export const SQLEditor = () => {
   const getImpersonatedRoleState = useGetImpersonatedRoleState()
   const databaseSelectorState = useDatabaseSelectorStateSnapshot()
   const { aiOptInLevel } = useOrgAiOptInLevel()
+  const sqlQueryTarget = useSqlQueryTarget()
 
   // [Ali] Kill switch to hide the SQL Editor Explain tab and its entry points
   const disablePrettyExplain = useFlag('DisablePrettyExplainOnSqlEditor')
@@ -1063,31 +1065,36 @@ export const SQLEditor = () => {
           <div className="h-9">
             {results?.rows !== undefined && !isExecuting && (
               <GridFooter className="flex items-center justify-between gap-2">
-                <Tooltip>
-                  <TooltipTrigger>
-                    <p className="text-xs">
-                      <span className="text-foreground">
-                        {results.rows.length} row{results.rows.length > 1 ? 's' : ''}
-                      </span>
-                      <span className="text-foreground-lighter ml-1">
-                        {results.autoLimit !== undefined &&
-                          ` (Limited to only ${results.autoLimit} rows)`}
-                      </span>
-                    </p>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="flex flex-col gap-y-1">
-                      <span>
-                        Results are automatically limited to preserve browser performance, in
-                        particular if your query returns an exceptionally large number of rows.
-                      </span>
+                <div className="flex items-center gap-3">
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <p className="text-xs">
+                        <span className="text-foreground">
+                          {results.rows.length} row{results.rows.length > 1 ? 's' : ''}
+                        </span>
+                        <span className="text-foreground-lighter ml-1">
+                          {results.autoLimit !== undefined &&
+                            ` (Limited to only ${results.autoLimit} rows)`}
+                        </span>
+                      </p>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="flex flex-col gap-y-1">
+                        <span>
+                          Results are automatically limited to preserve browser performance, in
+                          particular if your query returns an exceptionally large number of rows.
+                        </span>
 
-                      <span className="text-foreground-light">
-                        You may change or remove this limit from the dropdown on the right
-                      </span>
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
+                        <span className="text-foreground-light">
+                          You may change or remove this limit from the dropdown on the right
+                        </span>
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                  {sqlQueryTarget === 'warehouse' && (
+                    <p className="text-xs text-foreground-light">Served by: Warehouse</p>
+                  )}
+                </div>
                 {results.autoLimit !== undefined && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

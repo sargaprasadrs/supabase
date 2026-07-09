@@ -37,6 +37,10 @@ import { GenericSkeletonLoader } from 'ui-patterns/ShimmeringLoader'
 import { ProtectedSchemaWarning } from '../ProtectedSchemaWarning'
 import { formatAllEntities } from './Tables.utils'
 import { buildTableEditorUrl } from '@/components/grid/SupabaseGrid.utils'
+import {
+  isTableReplicated,
+  useWarehouseProjectState,
+} from '@/components/interfaces/Database/Warehouse/warehouseDemoStore'
 import { AlertError } from '@/components/ui/AlertError'
 import { ButtonTooltip } from '@/components/ui/ButtonTooltip'
 import { DropdownMenuItemTooltip } from '@/components/ui/DropdownMenuItemTooltip'
@@ -51,6 +55,7 @@ import { usePrefetchEditorTablePage } from '@/data/prefetchers/project.$ref.edit
 import { useInfiniteTablesQuery } from '@/data/tables/tables-query'
 import { useViewsQuery } from '@/data/views/views-query'
 import { useAsyncCheckPermissions } from '@/hooks/misc/useCheckPermissions'
+import { useIsWarehouseEnabled } from '@/hooks/misc/useIsWarehouseEnabled'
 import { useQuerySchemaState } from '@/hooks/misc/useSchemaQueryState'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
 import { useIsProtectedSchema } from '@/hooks/useProtectedSchemas'
@@ -75,6 +80,9 @@ export const TableList = ({
   const router = useRouter()
   const { ref } = useParams()
   const { data: project } = useSelectedProjectQuery()
+  const isWarehouseFeatureEnabled = useIsWarehouseEnabled()
+  const warehouseState = useWarehouseProjectState(ref)
+  const showReplicatedColumn = isWarehouseFeatureEnabled && warehouseState.enabled
 
   const prefetchEditorTablePage = usePrefetchEditorTablePage()
 
@@ -377,6 +385,7 @@ export const TableList = ({
                   <TableHead key="columns">Columns</TableHead>
                   <TableHead key="rows">Rows (Estimated)</TableHead>
                   <TableHead key="size">Size (Estimated)</TableHead>
+                  {showReplicatedColumn && <TableHead key="replicated">Replicated</TableHead>}
                   <TableHead key="realtime">Realtime</TableHead>
                   <TableHead key="buttons"></TableHead>
                 </TableRow>
@@ -385,7 +394,7 @@ export const TableList = ({
                 <>
                   {entities.length === 0 && filterString.length === 0 && (
                     <TableRow key={selectedSchema}>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={showReplicatedColumn ? 8 : 7}>
                         {visibleTypes.length === 0 ? (
                           <>
                             <p className="text-sm text-foreground">
@@ -420,7 +429,7 @@ export const TableList = ({
                   )}
                   {entities.length === 0 && filterString.length > 0 && (
                     <TableRow key={selectedSchema}>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={showReplicatedColumn ? 8 : 7}>
                         <p className="text-sm text-foreground">No results found</p>
                         <p className="text-sm text-foreground-light">
                           Your search for "{filterString}" did not return any results
@@ -489,6 +498,21 @@ export const TableList = ({
                             <p className="text-foreground-muted">–</p>
                           )}
                         </TableCell>
+                        {showReplicatedColumn && (
+                          <TableCell>
+                            {isTableReplicated(ref, x.schema, x.name) ? (
+                              <div className="flex items-center gap-x-2">
+                                <Check size={16} strokeWidth={2} className="text-brand-link" />
+                                <p className="text-foreground-light">Yes</p>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-x-2">
+                                <X size={16} strokeWidth={2} className="text-foreground-muted" />
+                                <p className="text-foreground-lighter">No</p>
+                              </div>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell>
                           {(realtimePublication?.tables ?? []).find(
                             (table) => table.id === x.id

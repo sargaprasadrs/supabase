@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'common'
+import { Database } from 'icons'
 import { MoreVertical, Plus, Search, X } from 'lucide-react'
 import { parseAsStringEnum, useQueryState } from 'nuqs'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -7,7 +8,6 @@ import {
   Button,
   Card,
   CardContent,
-  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -21,6 +21,7 @@ import {
 } from 'ui'
 import { Admonition } from 'ui-patterns/admonition'
 import { Input } from 'ui-patterns/DataInputs/Input'
+import { EmptyStatePresentational } from 'ui-patterns/EmptyStatePresentational'
 import { GenericSkeletonLoader } from 'ui-patterns/ShimmeringLoader'
 
 import { REPLICA_STATUS } from '../../Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.constants'
@@ -35,6 +36,8 @@ import {
   useIsETLIcebergPrivateAlpha,
   useIsETLSnowflakePrivateAlpha,
 } from './useIsETLPrivateAlpha'
+import { useWarehouseProjectState } from '@/components/interfaces/Database/Warehouse/warehouseDemoStore'
+import { WarehouseDestinationRow } from '@/components/interfaces/Database/Warehouse/WarehouseDestinationRow'
 import { AlertError } from '@/components/ui/AlertError'
 import { DocsButton } from '@/components/ui/DocsButton'
 import { Shortcut } from '@/components/ui/Shortcut'
@@ -46,6 +49,7 @@ import { useReplicationPipelinesQuery } from '@/data/replication/pipelines-query
 import { useReplicationSourcesQuery } from '@/data/replication/sources-query'
 import { checkLocalETLNotSetUp } from '@/data/replication/utils'
 import { useIsFeatureEnabled } from '@/hooks/misc/useIsFeatureEnabled'
+import { useIsWarehouseEnabled } from '@/hooks/misc/useIsWarehouseEnabled'
 import { DOCS_URL } from '@/lib/constants'
 import { SHORTCUT_IDS } from '@/state/shortcuts/registry'
 import { useShortcut } from '@/state/shortcuts/useShortcut'
@@ -58,6 +62,9 @@ export const Destinations = () => {
   const etlEnableIceberg = useIsETLIcebergPrivateAlpha()
   const etlEnableDucklake = useIsETLDucklakePrivateAlpha()
   const etlEnableSnowflake = useIsETLSnowflakePrivateAlpha()
+  const isWarehouseFeatureEnabled = useIsWarehouseEnabled()
+  const warehouseState = useWarehouseProjectState(projectRef)
+  const hasManagedWarehouse = isWarehouseFeatureEnabled && warehouseState.enabled
   const { infrastructureReadReplicas } = useIsFeatureEnabled(['infrastructure:read_replicas'])
 
   const newDestinationDefaultType = infrastructureReadReplicas
@@ -285,14 +292,15 @@ export const Destinations = () => {
 
         {isLocalETLNotSetUp && (
           <Admonition
-            type="default"
-            title="ETL API not set up locally — destinations cannot be managed"
+            type="warning"
+            title="Replication unavailable locally"
+            description="Configure the replication API to manage destinations in local development."
           />
         )}
 
         {isLoading ? (
           <GenericSkeletonLoader />
-        ) : hasReplicas || hasDestinations ? (
+        ) : hasReplicas || hasDestinations || hasManagedWarehouse ? (
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -313,6 +321,8 @@ export const Destinations = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {hasManagedWarehouse && <WarehouseDestinationRow />}
+
                   {filteredReplicas.map((replica) => {
                     return (
                       <ReadReplicaRow
@@ -330,6 +340,7 @@ export const Destinations = () => {
                   {!isLoading &&
                     filteredDestinations.length === 0 &&
                     filteredReplicas.length === 0 &&
+                    !hasManagedWarehouse &&
                     (hasReplicas || hasDestinations) && (
                       <TableRow>
                         <TableCell colSpan={6}>
@@ -347,27 +358,21 @@ export const Destinations = () => {
         ) : (
           !isLoading &&
           !hasErrorsFetchingData && (
-            <div
-              className={cn(
-                'w-full',
-                'border border-dashed bg-surface-100 border-overlay',
-                'flex flex-col px-16 rounded-lg justify-center items-center py-8 mt-4'
-              )}
+            <EmptyStatePresentational
+              icon={Database}
+              title="Add a replication destination"
+              description="Deploy a Read Replica to reduce latency and isolate workloads, or connect a Pipelines destination for analytics."
+              className="mt-4"
             >
-              <h4>Replication keeps your data in sync across systems</h4>
-              <p className="text-foreground-light text-sm text-balance text-center mt-1">
-                Deploy Read Replicas for lower latency and workload isolation, or add a Pipelines
-                destination for analytics workloads.
-              </p>
               <Button
+                variant="default"
                 icon={<Plus />}
                 disabled={!newDestinationDefaultType}
                 onClick={openDestinationPanel}
-                className="mt-4"
               >
                 Add destination
               </Button>
-            </div>
+            </EmptyStatePresentational>
           )
         )}
       </div>

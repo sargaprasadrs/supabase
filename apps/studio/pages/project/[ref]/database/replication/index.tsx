@@ -2,6 +2,7 @@ import { GenericSkeletonLoader } from 'ui-patterns/ShimmeringLoader'
 
 import { Destinations } from '@/components/interfaces/Database/Replication/Destinations'
 import { ReplicationDiagram } from '@/components/interfaces/Database/Replication/ReplicationDiagram'
+import { WarehouseProjectCard } from '@/components/interfaces/Database/Warehouse/WarehouseProjectCard'
 import DatabaseLayout from '@/components/layouts/DatabaseLayout/DatabaseLayout'
 import { DefaultLayout } from '@/components/layouts/DefaultLayout'
 import { ScaffoldContainer, ScaffoldSection } from '@/components/layouts/Scaffold'
@@ -55,6 +56,11 @@ const DatabaseReplicationPage: NextPageWithLayout = () => {
         </ScaffoldContainer>
       ) : (
         <>
+          <ScaffoldContainer>
+            <ScaffoldSection isFullWidth>
+              <WarehouseProjectCard />
+            </ScaffoldSection>
+          </ScaffoldContainer>
           <ReplicationDiagram />
           <ScaffoldContainer>
             <ScaffoldSection isFullWidth className="pt-6!">

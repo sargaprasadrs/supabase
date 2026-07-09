@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
 } from 'ui'
 
+import { SqlWarehouseTargetToggle } from '../SqlWarehouseTargetToggle'
 import { AutosaveStatus } from './AutosaveStatus'
 import { SqlRunButton } from './RunButton'
 import { SqlSaveButton } from './SaveButton'
@@ -212,6 +213,7 @@ export const UtilityActions = ({
       </div>
 
       <div className="flex items-center gap-x-2">
+        <SqlWarehouseTargetToggle />
         <div className="flex items-center">
           {IS_PLATFORM && (
             <DatabaseSelector
