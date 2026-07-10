@@ -450,15 +450,6 @@ export default defineConfig(({ command, mode }) => {
     resolve: {
       tsconfigPaths: true,
       alias: [
-        // `next/constants` runs `process?.features?.typescript` at module init,
-        // which throws `ReferenceError: process is not defined` in the browser
-        // bundle (see compat/next/constants.ts). The `nextShims` resolver above
-        // deliberately skips node_modules importers, so a global alias is needed
-        // to intercept transitive importers of the real Next internals.
-        {
-          find: 'next/constants',
-          replacement: path.join(compatRoot, 'constants.ts'),
-        },
         // `@sentry/nextjs`'s client entry drags in Next runtime internals
         // (`next/dist/shared/lib/constants`), whose module scope evaluates
         // `process?.features?.typescript` — optional chaining doesn't guard
