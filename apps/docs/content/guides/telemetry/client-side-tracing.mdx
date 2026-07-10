@@ -6,7 +6,7 @@ description: 'Propagate W3C trace context from the Supabase JS, Swift, and Dart 
 
 The Supabase JS, Swift, and Dart SDKs can attach [W3C Trace Context](https://www.w3.org/TR/trace-context/) headers (`traceparent`, `tracestate`, `baggage`) to outgoing requests. The resulting `trace_id` flows through Supabase services and appears in API Gateway and Edge Function logs, so you can correlate client-side spans with the server-side logs they produced — end-to-end, across the network boundary.
 
-Because the headers follow the W3C standard, any compliant tracing SDK (OpenTelemetry, Sentry, Datadog, Honeycomb, etc.) can pick up the trace on the server side, including in self-hosted collectors.
+Because the headers follow the W3C standard, any compliant tracing SDK (such as OpenTelemetry, Sentry, Datadog, or Honeycomb) can pick up the trace on the server side, including in self-hosted collectors.
 
 <Tabs
   scrollable
@@ -30,7 +30,7 @@ If `@opentelemetry/api` is not installed, or there is no active trace context at
 
 The SDK reads from whatever `TracerProvider` you register globally — it doesn't configure one for you. If you haven't instrumented your app yet, follow the [OpenTelemetry JavaScript getting started guide](https://opentelemetry.io/docs/languages/js/getting-started/) to install an SDK (`@opentelemetry/sdk-trace-node` for Node, `@opentelemetry/sdk-trace-web` for browsers) and an exporter for your backend (OTLP, Jaeger, Zipkin, or a vendor-specific one).
 
-The Supabase SDK only takes care of propagating the trace context that's already active when a request is made.
+The Supabase SDK only propagates the trace context that's already active when a request is made.
 
 ### Enable trace propagation
 
@@ -82,7 +82,7 @@ The SDK silently no-ops when it can't propagate, which keeps it safe to enable b
 
 - **No active span at request time.** The SDK reads the _current_ context. If `supabase.from(...)` is called outside `tracer.startActiveSpan(...)` (or equivalent), there's nothing to propagate. Wrap the call in a span or use OpenTelemetry's automatic instrumentation.
 - **`@opentelemetry/api` is not installed** in the app making the request. The SDK imports it dynamically and no-ops if it's missing.
-- **No `TracerProvider` registered.** `@opentelemetry/api` defaults to a noop provider that produces non-recorded spans. Make sure your app calls `provider.register()` (or your vendor SDK's equivalent) before making requests.
+- **No `TracerProvider` registered.** `@opentelemetry/api` defaults to a noop provider that produces non-recorded spans. Ensure your app calls `provider.register()` (or your vendor SDK's equivalent) before making requests.
 - **The upstream trace is not sampled.** By default the SDK respects upstream sampling decisions. Set `respectSamplingDecision: false` to propagate every request regardless of sampling.
 - **You're calling a non-Supabase host through a custom `fetch`.** Trace headers are only attached to Supabase domains (`*.supabase.co`, `*.supabase.in`, `localhost`).
 
