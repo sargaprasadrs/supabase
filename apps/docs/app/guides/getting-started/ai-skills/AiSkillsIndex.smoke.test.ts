@@ -10,7 +10,7 @@ const AI_SKILLS_URL = `${DOCS_BASE_URL.replace(/\/$/, '')}/docs/guides/ai-tools/
 // renders empty. This guards against that regressing again.
 describe('prod smoke test: agent skills load on the AI Skills page', () => {
   it('renders the skills table with at least one skill and no fallback', async () => {
-    const result = await fetch(AI_SKILLS_URL)
+    const result = await fetch(AI_SKILLS_URL, { signal: AbortSignal.timeout(30_000) })
     expect(result.status).toBe(200)
 
     const html = await result.text()
@@ -26,5 +26,7 @@ describe('prod smoke test: agent skills load on the AI Skills page', () => {
       .filter((text) => text.startsWith('npx skills add supabase/agent-skills --skill '))
 
     expect(installCommands.length).toBeGreaterThan(0)
-  })
+    // Test timeout must outlive the fetch abort so the network error surfaces
+    // instead of a generic vitest timeout.
+  }, 45_000)
 })
