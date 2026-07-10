@@ -96,46 +96,42 @@ Many tracing SDKs are built on top of OpenTelemetry. They work with this guide a
 
 Requires `supabase-swift` `2.51.0` or later and `swift-tools-version: 6.1` or later (SwiftPM trait support).
 
-### Enable the OpenTelemetry trait
+1. **Add the `OpenTelemetry` trait** to your dependency declaration in `Package.swift`:
 
-Propagation is controlled by a SwiftPM package **trait** called `OpenTelemetry`. Add it to your dependency declaration in `Package.swift`:
+   ```swift
+   // Package.swift
+   .package(
+     url: "https://github.com/supabase/supabase-swift.git",
+     from: "2.51.0",
+     traits: ["OpenTelemetry"]
+   )
+   ```
 
-```swift
-// Package.swift
-.package(
-  url: "https://github.com/supabase/supabase-swift.git",
-  from: "2.51.0",
-  traits: ["OpenTelemetry"]
-)
-```
+   No changes to `SupabaseClient` are required. After enabling the trait, the active OpenTelemetry span's trace context is automatically injected as a `traceparent` header on every outgoing request across PostgREST, Storage, Auth, Functions, and Realtime. When there is no active span, the header is not added.
 
-No changes to `SupabaseClient` are required. After enabling the trait, the active OpenTelemetry span's trace context is automatically injected as a `traceparent` header on every outgoing request across PostgREST, Storage, Auth, Functions, and Realtime.
+2. **Register a `TracerProvider`** at app start. The SDK reads from whatever provider you register globally:
 
-When there is no active span, the header is not added — it is always safe to call the SDK unconditionally.
+   ```swift
+   import Supabase
+   import OpenTelemetryApi
+   import OpenTelemetrySdk
 
-### Set up a tracer
+   let exporter = /* your OTLP / Jaeger / Zipkin exporter */
+   let spanProcessor = SimpleSpanProcessor(spanExporter: exporter)
+   let provider = TracerProviderBuilder()
+     .add(spanProcessor: spanProcessor)
+     .build()
+   OpenTelemetry.registerTracerProvider(tracerProvider: provider)
+   ```
 
-The SDK reads from whatever `TracerProvider` you register globally. Wire up your OpenTelemetry SDK before making requests:
+3. **Create your `SupabaseClient`**. Any active span is now propagated automatically:
 
-```swift
-import Supabase
-import OpenTelemetryApi
-import OpenTelemetrySdk
-
-// Register your provider once at app start.
-let exporter = /* your OTLP / Jaeger / Zipkin exporter */
-let spanProcessor = SimpleSpanProcessor(spanExporter: exporter)
-let provider = TracerProviderBuilder()
-  .add(spanProcessor: spanProcessor)
-  .build()
-OpenTelemetry.registerTracerProvider(tracerProvider: provider)
-
-// Any active span is now propagated automatically.
-let supabase = SupabaseClient(
-  supabaseURL: URL(string: "https://xyzcompany.supabase.co")!,
-  supabaseKey: "your-publishable-key"
-)
-```
+   ```swift
+   let supabase = SupabaseClient(
+     supabaseURL: URL(string: "https://xyzcompany.supabase.co")!,
+     supabaseKey: "your-publishable-key"
+   )
+   ```
 
 </TabPanel>
 
@@ -143,44 +139,42 @@ let supabase = SupabaseClient(
 
 Requires `supabase` `2.x` or later (Flutter or Dart-only).
 
-### Enable trace propagation
+1. **Implement a `traceContextProvider`** that returns the current `TraceContext` from your tracing library. Return `null` when there is no active span.
 
-Pass `TracePropagationOptions` when creating the client and supply a `traceContextProvider` callback that returns the current `TraceContext`:
+2. **Pass `TracePropagationOptions`** when creating the client:
 
-```dart
-import 'package:supabase/supabase.dart';
+   ```dart
+   import 'package:supabase/supabase.dart';
 
-final supabase = SupabaseClient(
-  'https://xyzcompany.supabase.co',
-  'your-publishable-key',
-  tracePropagationOptions: TracePropagationOptions(
-    enabled: true,
-    traceContextProvider: () {
-      // Return the active trace context from your tracing library.
-      // Return null when there is no active span.
-      final span = YourTracer.activeSpan;
-      if (span == null) return null;
-      return TraceContext(
-        traceparent: span.traceparent,
-        tracestate: span.tracestate,
-      );
-    },
-  ),
-);
-```
+   final supabase = SupabaseClient(
+     'https://xyzcompany.supabase.co',
+     'your-publishable-key',
+     tracePropagationOptions: TracePropagationOptions(
+       enabled: true,
+       traceContextProvider: () {
+         final span = YourTracer.activeSpan;
+         if (span == null) return null;
+         return TraceContext(
+           traceparent: span.traceparent,
+           tracestate: span.tracestate,
+         );
+       },
+     ),
+   );
+   ```
 
-For `supabase_flutter`, pass the same option through `Supabase.initialize`:
+   For `supabase_flutter`, pass the same option through `Supabase.initialize`:
 
-```dart
-await Supabase.initialize(
-  url: 'https://xyzcompany.supabase.co',
-  anonKey: 'your-publishable-key',
-  tracePropagationOptions: TracePropagationOptions(
-    enabled: true,
-    traceContextProvider: () => yourTraceContextProvider(),
-  ),
-);
-```
+   ```dart
+   await Supabase.initialize(
+     url: 'https://xyzcompany.supabase.co',
+     anonKey: 'your-publishable-key',
+     tracePropagationOptions: TracePropagationOptions(
+       enabled: true,
+       traceContextProvider: () => yourTraceContextProvider(),
+     ),
+   );
+   ```
 
 ### Options
 
