@@ -19,6 +19,14 @@ vi.mock('@/hooks/misc/useSelectedProject', () => ({
   useIsHighAvailability: vi.fn().mockImplementation(() => false),
 }))
 
+vi.mock('@/hooks/misc/useIsWarehouseEnabled', () => ({
+  useIsWarehouseEnabled: () => false,
+}))
+
+vi.mock('@/components/interfaces/Database/Warehouse/warehouseDemoStore', () => ({
+  useWarehouseProjectState: () => ({ enabled: false }),
+}))
+
 const deploymentModeMock = { isPlatform: true, isCli: false, isSelfHosted: false }
 vi.mock('@/hooks/misc/useDeploymentMode', () => ({
   useDeploymentMode: () => deploymentModeMock,

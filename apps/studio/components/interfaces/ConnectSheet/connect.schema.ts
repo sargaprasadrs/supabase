@@ -255,7 +255,13 @@ export const connectSchema: ConnectSchema = {
       id: 'direct',
       label: 'Direct',
       description: 'Connection string',
-      fields: ['connectionSource', 'connectionMethod', 'useSharedPooler', 'connectionType'],
+      fields: [
+        'queryTarget',
+        'connectionSource',
+        'connectionMethod',
+        'useSharedPooler',
+        'connectionType',
+      ],
     },
     {
       id: 'orm',
@@ -314,12 +320,20 @@ export const connectSchema: ConnectSchema = {
     },
 
     // Direct connection fields
+    queryTarget: {
+      id: 'queryTarget',
+      type: 'radio-list',
+      label: 'Connection string',
+      options: { source: 'queryTargets' },
+      defaultValue: 'postgres',
+    },
     connectionSource: {
       id: 'connectionSource',
       type: 'select',
       label: 'Source',
       options: { source: 'connectionSources' },
       defaultValue: undefined,
+      dependsOn: { queryTarget: ['postgres'] },
     },
     connectionMethod: {
       id: 'connectionMethod',
@@ -328,6 +342,7 @@ export const connectSchema: ConnectSchema = {
       options: { source: 'connectionMethods' },
       // Default is set per deployment mode by useConnectState.setMode('direct'):
       // platform/CLI → 'direct', self-hosted → 'session'.
+      dependsOn: { queryTarget: ['postgres'] },
     },
     useSharedPooler: {
       id: 'useSharedPooler',
@@ -335,7 +350,7 @@ export const connectSchema: ConnectSchema = {
       label: 'Use IPv4 connection (Shared Pooler)',
       description: 'Recommended when your network does not support IPv6',
       defaultValue: false,
-      dependsOn: { connectionMethod: ['transaction'] },
+      dependsOn: { connectionMethod: ['transaction'], queryTarget: ['postgres'] },
     },
     connectionType: {
       id: 'connectionType',

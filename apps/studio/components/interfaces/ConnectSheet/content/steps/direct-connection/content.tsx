@@ -27,6 +27,8 @@ import {
   resolveConnectionString,
 } from '@/components/interfaces/ConnectSheet/ConnectionString.utils'
 import { PasswordEncodingNote } from '@/components/interfaces/ConnectSheet/PasswordEncodingNote'
+import { buildWarehouseConnectCredentials } from '@/components/interfaces/ConnectSheet/warehouseConnect.constants'
+import { useWarehouseProjectState } from '@/components/interfaces/Database/Warehouse/warehouseDemoStore'
 import { ResetDbPasswordDialog } from '@/components/interfaces/Settings/Database/DatabaseSettings/ResetDbPasswordDialog'
 import { usePgbouncerConfigQuery } from '@/data/database/pgbouncer-config-query'
 import { useSupavisorConfigurationQuery } from '@/data/database/supavisor-configuration-query'
@@ -144,10 +146,14 @@ const CONNECTION_METHOD_TO_TELEMETRY: Record<
  */
 function DirectConnectionContent({ state, deploymentMode }: StepContentProps) {
   const track = useTrack()
+  const { ref: projectRef } = useParams()
   const { hasAccess: hasDedicatedPooler } = useCheckEntitlements('dedicated_pooler')
   const isHighAvailability = useIsHighAvailability()
+  const warehouseState = useWarehouseProjectState(projectRef)
   const [temporaryDatabasePassword, setTemporaryDatabasePassword] = useState('')
 
+  const queryTarget = (state.queryTarget as string) ?? 'postgres'
+  const isWarehouseTarget = queryTarget === 'warehouse'
   const connectionSource = state.connectionSource
   const connectionType = (state.connectionType as DatabaseConnectionType) ?? 'uri'
   const connectionMethod = (state.connectionMethod as ConnectionStringMethod) ?? 'direct'
@@ -157,15 +163,27 @@ function DirectConnectionContent({ state, deploymentMode }: StepContentProps) {
   const connectionStringPooler: ConnectionStringPooler | undefined =
     connectionStrings[connectionSource as keyof typeof connectionStrings]
   // Determine which connection string to use
-  const resolvedConnectionString = useMemo(
-    () =>
-      resolveConnectionString({
-        connectionMethod,
-        useSharedPooler,
-        connectionStringPooler,
-      }),
-    [connectionMethod, useSharedPooler, connectionStringPooler]
-  )
+  const resolvedConnectionString = useMemo(() => {
+    if (isWarehouseTarget && projectRef) {
+      return buildWarehouseConnectCredentials({
+        projectRef,
+        warehouseHost: warehouseState.warehouseHost,
+      }).connectionString
+    }
+
+    return resolveConnectionString({
+      connectionMethod,
+      useSharedPooler,
+      connectionStringPooler,
+    })
+  }, [
+    isWarehouseTarget,
+    projectRef,
+    warehouseState.warehouseHost,
+    connectionMethod,
+    useSharedPooler,
+    connectionStringPooler,
+  ])
 
   const connectionParams = useMemo(
     () => parseConnectionParams(resolvedConnectionString),
@@ -192,14 +210,14 @@ function DirectConnectionContent({ state, deploymentMode }: StepContentProps) {
   }, [connectionType, connectionParams, safeConnectionString])
 
   const connectionString = useMemo(() => {
-    if (!temporaryDatabasePassword) return redactedConnectionString
+    if (!temporaryDatabasePassword || isWarehouseTarget) return redactedConnectionString
 
     if (connectionType === 'psql') {
       return redactedConnectionString
     }
 
     return buildConnectionStringWithPassword(redactedConnectionString, temporaryDatabasePassword)
-  }, [connectionType, redactedConnectionString, temporaryDatabasePassword])
+  }, [connectionType, redactedConnectionString, temporaryDatabasePassword, isWarehouseTarget])
 
   const trackCopy = () => {
     const typeConfig = DATABASE_CONNECTION_TYPES.find((t) => t.id === connectionType)
@@ -221,15 +239,16 @@ function DirectConnectionContent({ state, deploymentMode }: StepContentProps) {
   }
 
   const poolerBadge =
-    connectionMethod === 'transaction'
+    !isWarehouseTarget && connectionMethod === 'transaction'
       ? useSharedPooler || !hasDedicatedPooler
         ? 'Shared Pooler'
         : 'Dedicated Pooler'
-      : connectionMethod === 'session'
+      : !isWarehouseTarget && connectionMethod === 'session'
         ? 'Shared Pooler'
         : null
 
-  const showSelfHostedDirectNotice = deploymentMode.isSelfHosted && connectionMethod === 'direct'
+  const showSelfHostedDirectNotice =
+    !isWarehouseTarget && deploymentMode.isSelfHosted && connectionMethod === 'direct'
 
   return (
     <div className="flex flex-col gap-2">
@@ -252,7 +271,7 @@ function DirectConnectionContent({ state, deploymentMode }: StepContentProps) {
             {connectionString}
           </CodeBlock>
         </div>
-        {deploymentMode.isPlatform && (
+        {deploymentMode.isPlatform && !isWarehouseTarget && (
           <div className="flex flex-col gap-2 border-t px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-foreground-light">
               {temporaryDatabasePassword ? (

@@ -65,7 +65,7 @@ export function buildWarehouseConnectionString({
   port?: number
 }): string {
   const host = warehouseHost?.length ? warehouseHost : getMockWarehouseHost(projectRef)
-  return `postgresql://postgres.[YOUR-PASSWORD]@${host}:${port}/${databaseName}`
+  return `postgresql://postgres:[YOUR-PASSWORD]@${host}:${port}/${databaseName}`
 }
 
 export function isWarehouseReplicationHealthy(state: WarehouseProjectState): boolean {

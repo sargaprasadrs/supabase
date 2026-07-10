@@ -16,14 +16,14 @@ export function WarehouseConnectPanel() {
         <Admonition
           type="default"
           layout="responsive"
-          title="Warehouse is not enabled"
-          description="Add a Warehouse destination from Database → Replication to view connection credentials."
+          title="Enable Warehouse for analytical workloads"
+          description="Replicate your project database into Warehouse, then connect analytical tools to a dedicated endpoint."
           actions={
             projectRef
               ? [
                   <Button asChild key="replication" variant="default">
                     <Link href={`/project/${projectRef}/database/replication`}>
-                      Go to Replication
+                      Enable Warehouse
                     </Link>
                   </Button>,
                 ]

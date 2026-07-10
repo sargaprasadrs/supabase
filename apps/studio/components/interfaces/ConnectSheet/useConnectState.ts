@@ -26,10 +26,12 @@ import type {
   ResolvedStep,
 } from './Connect.types'
 import { resolveFrameworkLibraryKey } from './Connect.utils'
+import { useWarehouseProjectState } from '@/components/interfaces/Database/Warehouse/warehouseDemoStore'
 import { Database, useReadReplicasQuery } from '@/data/read-replicas/replicas-query'
 import { formatDatabaseID, formatDatabaseRegion } from '@/data/read-replicas/replicas.utils'
 import { useCheckEntitlements } from '@/hooks/misc/useCheckEntitlements'
 import { useDeploymentMode } from '@/hooks/misc/useDeploymentMode'
+import { useIsWarehouseEnabled } from '@/hooks/misc/useIsWarehouseEnabled'
 import { useIsHighAvailability } from '@/hooks/misc/useSelectedProject'
 
 // ============================================================================
@@ -45,11 +47,13 @@ function getFieldOptionsFromSource({
   state,
   databases,
   deploymentMode,
+  warehouseEnabled,
 }: {
   source: string
   state: ConnectState
   databases: Database[]
   deploymentMode: DeploymentMode
+  warehouseEnabled: boolean
 }): FieldOption[] {
   switch (source) {
     case 'frameworks':
@@ -130,6 +134,14 @@ function getFieldOptionsFromSource({
       }))
     }
 
+    case 'queryTargets': {
+      const options: FieldOption[] = [{ value: 'postgres', label: 'Postgres' }]
+      if (warehouseEnabled) {
+        options.push({ value: 'warehouse', label: 'Warehouse' })
+      }
+      return options
+    }
+
     case 'connectionSources':
       return databases.map((db) => {
         const region = formatDatabaseRegion(db?.region ?? '')
@@ -180,11 +192,13 @@ function resolveFieldOptionsWithSource({
   state,
   databases,
   deploymentMode,
+  warehouseEnabled,
 }: {
   field: ResolvedField
   state: ConnectState
   databases: Database[]
   deploymentMode: DeploymentMode
+  warehouseEnabled: boolean
 }): FieldOption[] {
   // If already resolved (from conditional resolution)
   if (field.resolvedOptions.length > 0) {
@@ -199,6 +213,7 @@ function resolveFieldOptionsWithSource({
       state,
       databases,
       deploymentMode,
+      warehouseEnabled,
     })
   }
 
@@ -225,6 +240,9 @@ export function useConnectState(initialState?: Partial<ConnectState>): UseConnec
   const { hasAccess: hasDedicatedPooler } = useCheckEntitlements('dedicated_pooler')
   const isHighAvailability = useIsHighAvailability()
   const deploymentMode = useDeploymentMode()
+  const isWarehouseFeatureEnabled = useIsWarehouseEnabled()
+  const warehouseState = useWarehouseProjectState(projectRef)
+  const warehouseEnabled = isWarehouseFeatureEnabled && warehouseState.enabled
 
   const [state, setState] = useState<ConnectState>(() => {
     const defaults = getDefaultState({ schema: connectSchema })
@@ -328,6 +346,7 @@ export function useConnectState(initialState?: Partial<ConnectState>): UseConnec
 
         if (mode === 'direct') {
           const defaultMethod = deploymentMode.isSelfHosted ? 'session' : 'direct'
+          next.queryTarget = next.queryTarget ?? 'postgres'
           next.connectionMethod = next.connectionMethod ?? defaultMethod
           next.connectionType = next.connectionType ?? 'uri'
           next.connectionSource = projectRef ?? '_'
@@ -368,9 +387,15 @@ export function useConnectState(initialState?: Partial<ConnectState>): UseConnec
     (fieldId: string): FieldOption[] => {
       const field = activeFields.find((f) => f.id === fieldId)
       if (!field) return []
-      return resolveFieldOptionsWithSource({ field, state, databases, deploymentMode })
+      return resolveFieldOptionsWithSource({
+        field,
+        state,
+        databases,
+        deploymentMode,
+        warehouseEnabled,
+      })
     },
-    [activeFields, state, databases, deploymentMode]
+    [activeFields, state, databases, deploymentMode, warehouseEnabled]
   )
 
   return {

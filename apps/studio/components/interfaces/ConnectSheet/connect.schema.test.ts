@@ -37,6 +37,7 @@ describe('connect.schema:structure', () => {
 
   test('direct mode should have correct fields', () => {
     const directMode = connectSchema.modes.find((m) => m.id === 'direct')
+    expect(directMode?.fields).toContain('queryTarget')
     expect(directMode?.fields).toContain('connectionMethod')
     expect(directMode?.fields).toContain('useSharedPooler')
     expect(directMode?.fields).toContain('connectionType')
@@ -102,7 +103,23 @@ describe('connect.schema:fields', () => {
   test('useSharedPooler field should depend on transaction connection method', () => {
     const field = connectSchema.fields.useSharedPooler
     expect(field.type).toBe('switch')
-    expect(field.dependsOn).toEqual({ connectionMethod: ['transaction'] })
+    expect(field.dependsOn).toEqual({
+      connectionMethod: ['transaction'],
+      queryTarget: ['postgres'],
+    })
+  })
+
+  test('queryTarget field should be a radio-list for Postgres vs Warehouse', () => {
+    const field = connectSchema.fields.queryTarget
+    expect(field.type).toBe('radio-list')
+    expect(field.label).toBe('Connection string')
+    expect(field.options).toEqual({ source: 'queryTargets' })
+    expect(field.defaultValue).toBe('postgres')
+  })
+
+  test('direct mode postgres-only fields should depend on queryTarget', () => {
+    expect(connectSchema.fields.connectionSource.dependsOn).toEqual({ queryTarget: ['postgres'] })
+    expect(connectSchema.fields.connectionMethod.dependsOn).toEqual({ queryTarget: ['postgres'] })
   })
 
   test('orm field should have radio-list type', () => {

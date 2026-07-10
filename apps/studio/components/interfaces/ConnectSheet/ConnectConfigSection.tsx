@@ -249,27 +249,52 @@ export function ModeSelector({ modes, selected, onChange }: ModeSelectorProps) {
   const rows = Math.ceil(modes.length / cols)
 
   return (
-    <div className="grid grid-cols-3 rounded-lg border overflow-hidden">
+    <div className="grid grid-cols-3">
       {modes.map((mode, index) => {
         const col = index % cols
         const row = Math.floor(index / cols)
+        const isSelected = selected === mode.id
+        const isTopLeft = row === 0 && col === 0
+        const isTopRight = row === 0 && col === cols - 1
+        const isBottomLeft = row === rows - 1 && col === 0
+        const isBottomRight = row === rows - 1 && col === cols - 1
 
         return (
           <button
             key={mode.id}
             type="button"
             onClick={() => onChange(mode.id)}
+            aria-pressed={isSelected}
             className={cn(
-              'flex flex-col items-center gap-2 p-4 transition-colors',
-              col < cols - 1 && 'border-r',
-              row < rows - 1 && 'border-b',
-              selected === mode.id ? 'bg-surface-300' : 'hover:bg-surface-100'
+              // Match RadioGroupStackedItem: each cell owns a border, adjacent edges overlap
+              'relative -mb-px -mr-px flex flex-col items-center gap-2 border bg-overlay/50 p-4 shadow-xs transition',
+              isTopLeft && 'rounded-tl-lg',
+              isTopRight && 'rounded-tr-lg',
+              isBottomLeft && 'rounded-bl-lg',
+              isBottomRight && 'rounded-br-lg',
+              isSelected
+                ? 'z-1 border-foreground-muted bg-surface-300 ring-1 ring-border'
+                : 'hover:z-1 hover:bg-surface-200'
             )}
           >
-            <span className="text-foreground-light">{MODE_ICONS[mode.id]}</span>
+            <span className={cn(isSelected ? 'text-foreground' : 'text-foreground-light')}>
+              {MODE_ICONS[mode.id]}
+            </span>
             <div>
-              <p className="heading-default text-center">{mode.label}</p>
-              <p className="text-sm leading-tight text-foreground-lighter text-center">
+              <p
+                className={cn(
+                  'heading-default text-center',
+                  isSelected ? 'text-foreground' : 'text-foreground-light'
+                )}
+              >
+                {mode.label}
+              </p>
+              <p
+                className={cn(
+                  'text-sm leading-tight text-center',
+                  isSelected ? 'text-foreground-light' : 'text-foreground-lighter'
+                )}
+              >
                 {mode.description}
               </p>
             </div>
