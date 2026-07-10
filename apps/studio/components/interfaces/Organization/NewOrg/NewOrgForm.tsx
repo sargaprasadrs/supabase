@@ -35,6 +35,7 @@ import {
   type OrgKind,
   type OrgSize,
 } from './OrganizationDetailsFields'
+import { deriveTier, type OrgTier } from './NewOrgForm.utils'
 import { UpgradeExistingOrganizationCallout } from './UpgradeExistingOrganizationCallout'
 import { ChargeBreakdown } from '@/components/interfaces/Billing/ChargeBreakdown'
 import { getStripeElementsAppearanceOptions } from '@/components/interfaces/Billing/Payment/Payment.utils'
@@ -83,18 +84,6 @@ const formSchema = organizationDetailsSchema.extend({
 })
 
 type FormState = z.infer<typeof formSchema>
-
-type OrgTier = 'tier_free' | 'tier_pro' | 'tier_payg' | 'tier_team'
-
-/**
- * Derives the telemetry tier from the (non-null) submitted form values. This is the single source
- * of truth for translating a plan + spend cap into a tier, so callers can never emit an
- * organization creation event without a valid tier.
- */
-const deriveTier = (plan: (typeof plans)[number], spendCap: boolean): OrgTier => {
-  const dbTier = plan === 'PRO' && !spendCap ? 'PAYG' : plan
-  return ('tier_' + dbTier.toLowerCase()) as OrgTier
-}
 
 const stripePromise = loadStripe(STRIPE_PUBLIC_KEY)
 
@@ -225,8 +214,7 @@ export const NewOrgForm = ({
 
   const previewTier = useMemo(() => {
     if (selectedPlan === 'FREE') return undefined
-    const dbTier = selectedPlan === 'PRO' && !selectedSpendCap ? 'PAYG' : selectedPlan
-    return ('tier_' + dbTier.toLowerCase()) as 'tier_pro' | 'tier_payg' | 'tier_team'
+    return deriveTier(selectedPlan, selectedSpendCap)
   }, [selectedPlan, selectedSpendCap])
 
   const {
