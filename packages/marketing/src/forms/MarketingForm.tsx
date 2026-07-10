@@ -391,9 +391,20 @@ export default function MarketingForm({
           }
         >
           <p className="h3">Thank you!</p>
-          <p className="text-foreground-light">
-            {successMessage ?? "We've received your submission and will be in touch soon."}
-          </p>
+          <div className="text-foreground-light [&_a]:text-brand-link [&_a]:decoration-brand-link">
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => <p>{children}</p>,
+                a: ({ href, children }) => (
+                  <a href={href} target="_blank" rel="noopener noreferrer">
+                    {children}
+                  </a>
+                ),
+              }}
+            >
+              {successMessage ?? "We've received your submission and will be in touch soon."}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
     )

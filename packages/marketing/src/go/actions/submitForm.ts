@@ -94,27 +94,44 @@ const contextSchema = z
   })
   .optional()
 
+/**
+ * Builds the trusted per-provider config, skipping (with a warning) any
+ * provider whose credentials aren't configured rather than aborting the
+ * whole submission. A misconfigured secondary provider (e.g. Notion) should
+ * never take down a working primary one (e.g. HubSpot) — see DEBR-271, where
+ * HubSpot is the source of truth and Notion is a best-effort sync on top.
+ */
 function buildCrmConfig(crm: GoFormCrmConfig): CRMConfig {
   const config: CRMConfig = {}
 
   if (crm.hubspot) {
     const hubspotPortalId = process.env.HUBSPOT_PORTAL_ID
-    if (!hubspotPortalId) throw new Error('HUBSPOT_PORTAL_ID env var is not set')
-    config.hubspot = { portalId: hubspotPortalId, formGuid: crm.hubspot.formGuid }
+    if (!hubspotPortalId) {
+      console.warn('[go/form] Skipping HubSpot: HUBSPOT_PORTAL_ID env var is not set')
+    } else {
+      config.hubspot = { portalId: hubspotPortalId, formGuid: crm.hubspot.formGuid }
+    }
   }
 
   if (crm.customerio) {
     const customerioSiteId = process.env.CUSTOMERIO_SITE_ID
     const customerioApiKey = process.env.CUSTOMERIO_API_KEY
-    if (!customerioSiteId) throw new Error('CUSTOMERIO_SITE_ID env var is not set')
-    if (!customerioApiKey) throw new Error('CUSTOMERIO_API_KEY env var is not set')
-    config.customerio = { siteId: customerioSiteId, apiKey: customerioApiKey }
+    if (!customerioSiteId) {
+      console.warn('[go/form] Skipping Customer.io: CUSTOMERIO_SITE_ID env var is not set')
+    } else if (!customerioApiKey) {
+      console.warn('[go/form] Skipping Customer.io: CUSTOMERIO_API_KEY env var is not set')
+    } else {
+      config.customerio = { siteId: customerioSiteId, apiKey: customerioApiKey }
+    }
   }
 
   if (crm.notion) {
     const notionApiKey = process.env.NOTION_FORMS_API_KEY
-    if (!notionApiKey) throw new Error('NOTION_FORMS_API_KEY env var is not set')
-    config.notion = { apiKey: notionApiKey }
+    if (!notionApiKey) {
+      console.warn('[go/form] Skipping Notion: NOTION_FORMS_API_KEY env var is not set')
+    } else {
+      config.notion = { apiKey: notionApiKey }
+    }
   }
 
   return config
