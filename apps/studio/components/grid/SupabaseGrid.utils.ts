@@ -24,14 +24,20 @@ import { BASE_PATH } from '@/lib/constants'
 import { eventMatchesAnyShortcut } from '@/state/shortcuts/matchEvent'
 import { tableEditorRegistry } from '@/state/shortcuts/registry/table-editor'
 
-export function formatSortURLParams(tableName: string, sort?: string[]): Sort[] {
+export function formatSortURLParams(
+  // Should match the Entity type.
+  table: { name: string; columns: { name: string }[] },
+  sort?: string[]
+): Sort[] {
   if (Array.isArray(sort)) {
     return compact(
       sort.map((s) => {
         const [column, order] = s.split(':')
         // Reject any possible malformed sort param
         if (!column || !order) return undefined
-        else return { table: tableName, column, ascending: order === 'asc' }
+        // if the sort column name doesn't exist in the table, reject it as well to avoid confusion
+        if (table.columns.find((c) => c.name === column) === undefined) return undefined
+        else return { table: table.name, column, ascending: order === 'asc' }
       })
     )
   }
@@ -191,12 +197,14 @@ export function saveTableEditorStateToLocalStorage({
   gridColumns,
   sorts,
   filters,
+  sensitiveDataColumns,
 }: {
   projectRef: string
   tableId: number
   gridColumns?: CalculatedColumn<any, any>[]
   sorts?: string[]
   filters?: string[]
+  sensitiveDataColumns?: string[]
 }) {
   const storageKey = getStorageKey(STORAGE_KEY_PREFIX, projectRef)
   const savedStr = safeSessionStorage.getItem(storageKey) ?? safeLocalStorage.getItem(storageKey)
@@ -205,6 +213,7 @@ export function saveTableEditorStateToLocalStorage({
     ...(gridColumns !== undefined && { gridColumns }),
     ...(sorts !== undefined && { sorts: sorts.filter((sort) => sort !== '') }),
     ...(filters !== undefined && { filters: filters.filter((filter) => filter !== '') }),
+    ...(sensitiveDataColumns !== undefined && { sensitiveDataColumns }),
   }
 
   let savedJson
@@ -281,6 +290,7 @@ export const handleCellKeyDown = <TRow extends SupaRow = SupaRow>(
     rows: TRow[]
     columns: SupaColumn[]
     onRowsChange: (rows: TRow[], data: RowsChangeData<TRow, unknown>) => void
+    sensitiveDataColumns?: Set<string>
   }
 ) => {
   const { mode, column, row, rowIdx } = args
@@ -290,11 +300,16 @@ export const handleCellKeyDown = <TRow extends SupaRow = SupaRow>(
   if (key === 'c' && (event.metaKey || event.ctrlKey)) {
     if (window.getSelection()?.isCollapsed === false) return
 
+    const isSensitive = context?.sensitiveDataColumns?.has(column.key as string)
     const value = formatClipboardValue(row[column.key] ?? '')
     event.preventDefault()
     event.preventGridDefault()
     void copyToClipboard(value, () => {
-      toast.success('Copied cell value to clipboard')
+      if (isSensitive) {
+        toast.warning('Copied sensitive data to clipboard')
+      } else {
+        toast.success('Copied cell value to clipboard')
+      }
     })
     return
   }

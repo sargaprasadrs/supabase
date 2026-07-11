@@ -166,6 +166,13 @@ export const selectFieldSchema = formFieldBase.extend({
 
 export const checkboxFieldSchema = formFieldBase.extend({
   type: z.literal('checkbox'),
+  /**
+   * Optional group identifier for related checkboxes. When any visible checkbox
+   * in a group has `groupRequired: true`, at least one checkbox in that group
+   * must be selected.
+   */
+  group: z.string().optional(),
+  groupRequired: z.boolean().optional().default(false),
 })
 
 export const formFieldSchema = z.discriminatedUnion('type', [
@@ -201,6 +208,14 @@ export const hubspotFormConfigSchema = z.object({
    * Example: { workEmail: 'email', companyName: 'company' }
    */
   fieldMap: z.record(z.string(), z.string()).optional(),
+  /**
+   * Form field `name`s to NOT forward to HubSpot. Use this for fields that
+   * should only reach another provider (e.g. Notion-only fields). By default
+   * every submitted field is sent to HubSpot, so an unmapped field a HubSpot
+   * form doesn't define would otherwise cause the whole submission to fail.
+   * Example: ['attending']
+   */
+  excludeFields: z.array(z.string()).optional(),
   /** Legal consent text for GDPR. */
   consent: z.string().optional(),
 })

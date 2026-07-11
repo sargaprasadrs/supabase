@@ -1,14 +1,20 @@
-import { safeSql } from '@supabase/pg-meta'
+import { safeSql, untrustedSql } from '@supabase/pg-meta'
 import { stripIndent } from 'common-tags'
 import { describe, expect, it, test } from 'vitest'
 
+import type { IStandaloneCodeEditor } from './SQLEditor.types'
 import {
   appendEnableRLSStatements,
+  assembleCompletionDiff,
+  buildDebugPromptText,
+  buildExplainSql,
   checkAlterDatabaseConnection,
   checkDestructiveQuery,
   checkIfAppendLimitRequired,
+  computeErrorHighlightLine,
   filterTablesCoveredByEnsureRLSTrigger,
   getCreateTablesMissingRLS,
+  getEditorSql,
   hasActiveEnsureRLSTrigger,
   isUpdateWithoutWhere,
   suffixWithLimit,
@@ -53,8 +59,20 @@ describe('SQLEditor.utils.ts:checkIfAppendLimitRequired', () => {
     const { appendAutoLimit } = checkIfAppendLimitRequired(sql, limit)
     expect(appendAutoLimit).toBe(false)
   })
+  test('Should return false if query already has a limit with whitespace before the semi colon', () => {
+    const sql = 'select * from countries limit 10 ;'
+    const limit = 100
+    const { appendAutoLimit } = checkIfAppendLimitRequired(sql, limit)
+    expect(appendAutoLimit).toBe(false)
+  })
   test('Should return false if query already has a limit and offset', () => {
     const sql = 'select * from countries limit 10 offset 0;'
+    const limit = 100
+    const { appendAutoLimit } = checkIfAppendLimitRequired(sql, limit)
+    expect(appendAutoLimit).toBe(false)
+  })
+  test('Should return false if query already has a limit and offset with whitespace before the semi colon', () => {
+    const sql = 'select * from countries limit 10 offset 0 ;'
     const limit = 100
     const { appendAutoLimit } = checkIfAppendLimitRequired(sql, limit)
     expect(appendAutoLimit).toBe(false)
@@ -153,6 +171,12 @@ describe('SQLEditor.utils.ts:suffixWithLimit', () => {
     const limit = 100
     const formattedSql = suffixWithLimit(sql, limit)
     expect(formattedSql).toBe('select * from countries limit 100;')
+  })
+  test('Should not append a limit if query already has one with whitespace before the semi colon', () => {
+    const sql = safeSql`select * from countries limit 10 ;`
+    const limit = 100
+    const formattedSql = suffixWithLimit(sql, limit)
+    expect(formattedSql).toBe('select * from countries limit 10 ;')
   })
 })
 
@@ -324,6 +348,226 @@ describe('SQLEditor.utils:updateWithoutWhere', () => {
     DESTRUCTIVE_QUERIES.forEach((query) => {
       expect(checkDestructiveQuery(query), `Query ${query} should be destructive`).toBe(true)
     })
+  })
+
+  it('should catch EXECUTE with DROP in string literal', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'DROP TABLE users';`)).toBe(true)
+  })
+
+  it('should catch EXECUTE with DELETE in string literal', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'DELETE FROM users';`)).toBe(true)
+  })
+
+  it('should catch EXECUTE with TRUNCATE in string literal', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'TRUNCATE TABLE users';`)).toBe(true)
+  })
+
+  it('should catch EXECUTE format with DROP', () => {
+    expect(checkDestructiveQuery(`EXECUTE format('DROP TABLE %I', table_name);`)).toBe(true)
+  })
+
+  it('should catch EXECUTE format with DELETE', () => {
+    expect(checkDestructiveQuery(`EXECUTE format('DELETE FROM %I', table_name);`)).toBe(true)
+  })
+
+  it('should catch EXECUTE format with TRUNCATE', () => {
+    expect(checkDestructiveQuery(`EXECUTE format('TRUNCATE TABLE %I', table_name);`)).toBe(true)
+  })
+
+  it('should catch EXECUTE with string concatenation containing DROP', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'DROP TABLE ' || table_name;`)).toBe(true)
+  })
+
+  it('should catch EXECUTE with string concatenation containing DELETE', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'DELETE FROM ' || table_name;`)).toBe(true)
+  })
+
+  it('should catch DO block with EXECUTE DROP', () => {
+    expect(
+      checkDestructiveQuery(stripIndent`
+        DO $$
+        BEGIN
+          EXECUTE 'DROP TABLE users';
+        END
+        $$;
+      `)
+    ).toBe(true)
+  })
+
+  it('should catch DO block with EXECUTE format DROP', () => {
+    expect(
+      checkDestructiveQuery(stripIndent`
+        DO $$
+        BEGIN
+          FOR rec IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+            EXECUTE format('DROP TABLE %I', rec.tablename);
+          END LOOP;
+        END
+        $$;
+      `)
+    ).toBe(true)
+  })
+
+  it('should catch DO block with multiple EXECUTE format DROPs', () => {
+    expect(
+      checkDestructiveQuery(stripIndent`
+        DO $$
+        DECLARE
+          func_name text;
+        BEGIN
+          FOR func_name IN
+            SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public'
+          LOOP
+            EXECUTE format('DROP FUNCTION %I', func_name);
+          END LOOP;
+        END
+        $$;
+      `)
+    ).toBe(true)
+  })
+
+  it('should catch lowercase execute with drop', () => {
+    expect(checkDestructiveQuery(`execute 'drop table users';`)).toBe(true)
+  })
+
+  it('should catch mixed case EXECUTE Format with DROP', () => {
+    expect(checkDestructiveQuery(`EXECUTE Format('DROP TABLE users');`)).toBe(true)
+  })
+
+  it('should not flag EXECUTE with safe SQL', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'SELECT * FROM users';`)).toBe(false)
+  })
+
+  it('should not flag EXECUTE with INSERT', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'INSERT INTO users (name) VALUES (''test'')';`)).toBe(
+      false
+    )
+  })
+
+  it('should not flag EXECUTE with UPDATE and WHERE', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'UPDATE users SET name = ''test'' WHERE id = 1';`)).toBe(
+      false
+    )
+  })
+
+  it('should catch EXECUTE IMMEDIATE with DROP', () => {
+    expect(checkDestructiveQuery(`EXECUTE IMMEDIATE 'DROP TABLE users';`)).toBe(true)
+  })
+
+  it('should catch EXECUTE IMMEDIATE with DELETE', () => {
+    expect(checkDestructiveQuery(`EXECUTE IMMEDIATE 'DELETE FROM users';`)).toBe(true)
+  })
+
+  it('should catch EXECUTE IMMEDIATE with TRUNCATE', () => {
+    expect(checkDestructiveQuery(`EXECUTE IMMEDIATE 'TRUNCATE TABLE users';`)).toBe(true)
+  })
+
+  it('should catch OPEN cursor FOR EXECUTE with DROP', () => {
+    expect(checkDestructiveQuery(`OPEN ref FOR EXECUTE 'DROP TABLE users';`)).toBe(true)
+  })
+
+  it('should catch OPEN cursor FOR EXECUTE format with DELETE', () => {
+    expect(checkDestructiveQuery(`OPEN ref FOR EXECUTE format('DELETE FROM %I', tbl);`)).toBe(true)
+  })
+
+  it('should catch OPEN cursor FOR EXECUTE with string concat', () => {
+    expect(checkDestructiveQuery(`OPEN ref FOR EXECUTE 'TRUNCATE TABLE ' || tbl;`)).toBe(true)
+  })
+
+  it('should catch RETURN QUERY EXECUTE with DROP', () => {
+    expect(checkDestructiveQuery(`RETURN QUERY EXECUTE 'DROP TABLE users';`)).toBe(true)
+  })
+
+  it('should catch RETURN QUERY EXECUTE format with DELETE', () => {
+    expect(checkDestructiveQuery(`RETURN QUERY EXECUTE format('DELETE FROM %I', tbl);`)).toBe(true)
+  })
+
+  it('should catch EXECUTE with dollar-quoted string containing DROP', () => {
+    expect(checkDestructiveQuery(`EXECUTE $sql$DROP TABLE users$sql$;`)).toBe(true)
+  })
+
+  it('should catch EXECUTE with dollar-quoted string containing TRUNCATE', () => {
+    expect(checkDestructiveQuery(`EXECUTE $body$TRUNCATE TABLE logs$body$;`)).toBe(true)
+  })
+
+  it('should catch EXECUTE concat with DROP', () => {
+    expect(checkDestructiveQuery(`EXECUTE concat('DROP TABLE ', 'users');`)).toBe(true)
+  })
+
+  it('should catch EXECUTE concat_ws with DELETE', () => {
+    expect(checkDestructiveQuery(`EXECUTE concat_ws(' ', 'DELETE FROM', 'users');`)).toBe(true)
+  })
+
+  it('should catch EXECUTE with E-string escape containing DROP', () => {
+    expect(checkDestructiveQuery(`EXECUTE E'DROP TABLE users';`)).toBe(true)
+  })
+
+  it('should catch EXECUTE with ALTER TABLE DROP COLUMN', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'ALTER TABLE users DROP COLUMN email';`)).toBe(true)
+  })
+
+  it('should catch EXECUTE format with ALTER TABLE DROP COLUMN', () => {
+    expect(
+      checkDestructiveQuery(`EXECUTE format('ALTER TABLE %I DROP COLUMN %I', 'users', 'email');`)
+    ).toBe(true)
+  })
+
+  it('should catch EXECUTE IMMEDIATE with ALTER TABLE DROP COLUMN', () => {
+    expect(checkDestructiveQuery(`EXECUTE IMMEDIATE 'ALTER TABLE users DROP COLUMN email';`)).toBe(
+      true
+    )
+  })
+
+  it('should catch OPEN cursor FOR EXECUTE with ALTER TABLE DROP COLUMN', () => {
+    expect(
+      checkDestructiveQuery(`OPEN ref FOR EXECUTE 'ALTER TABLE users DROP COLUMN email';`)
+    ).toBe(true)
+  })
+
+  it('should catch RETURN QUERY EXECUTE with ALTER TABLE DROP COLUMN', () => {
+    expect(
+      checkDestructiveQuery(`RETURN QUERY EXECUTE 'ALTER TABLE users DROP COLUMN email';`)
+    ).toBe(true)
+  })
+
+  it('should catch EXECUTE dollar-quoted with ALTER TABLE DROP COLUMN', () => {
+    expect(checkDestructiveQuery(`EXECUTE $sql$ALTER TABLE users DROP COLUMN email$sql$;`)).toBe(
+      true
+    )
+  })
+
+  it('should catch EXECUTE concat with ALTER TABLE DROP COLUMN', () => {
+    expect(
+      checkDestructiveQuery(`EXECUTE concat('ALTER TABLE ', 'users DROP COLUMN email');`)
+    ).toBe(true)
+  })
+
+  it('should catch DO block with EXECUTE ALTER TABLE DROP COLUMN', () => {
+    expect(
+      checkDestructiveQuery(stripIndent`
+        DO $$
+        BEGIN
+          EXECUTE 'ALTER TABLE users DROP COLUMN email';
+        END
+        $$;
+      `)
+    ).toBe(true)
+  })
+
+  it('should not flag ALTER TABLE without DROP COLUMN', () => {
+    expect(checkDestructiveQuery(`EXECUTE 'ALTER TABLE users ADD COLUMN email text';`)).toBe(false)
+  })
+
+  it('should not flag variable assignment with safe SQL', () => {
+    expect(checkDestructiveQuery(`sql := 'SELECT * FROM users';`)).toBe(false)
+  })
+
+  it('should not flag OPEN cursor FOR EXECUTE with safe SQL', () => {
+    expect(checkDestructiveQuery(`OPEN ref FOR EXECUTE 'SELECT * FROM users';`)).toBe(false)
+  })
+
+  it('should not flag RETURN QUERY EXECUTE with safe SQL', () => {
+    expect(checkDestructiveQuery(`RETURN QUERY EXECUTE 'SELECT * FROM users';`)).toBe(false)
   })
 })
 
@@ -722,5 +966,99 @@ describe('SQLEditor.utils:checkAlterDatabaseConnection', () => {
       alter database postgres allow_connections false;
     `)
     expect(match).toBe(true)
+  })
+})
+
+// Minimal fake editor for exercising getEditorSql's selection/value logic.
+const makeEditor = ({
+  value,
+  selectionValue,
+  hasSelection = selectionValue !== undefined,
+}: {
+  value: string | undefined
+  selectionValue?: string
+  hasSelection?: boolean
+}): IStandaloneCodeEditor =>
+  ({
+    getValue: () => value,
+    getSelection: () => (hasSelection ? ({ startLineNumber: 1 } as any) : null),
+    getModel: () => ({ getValueInRange: () => selectionValue }) as any,
+  }) as unknown as IStandaloneCodeEditor
+
+describe('SQLEditor.utils:getEditorSql', () => {
+  it('returns the selected text when there is a selection', () => {
+    const editor = makeEditor({ value: 'select 1;', selectionValue: 'select 2;' })
+    expect(getEditorSql(editor)).toBe('select 2;')
+  })
+
+  it('returns the full editor value when there is no selection', () => {
+    const editor = makeEditor({ value: 'select 1;', hasSelection: false })
+    expect(getEditorSql(editor)).toBe('select 1;')
+  })
+
+  it('falls back to the full value when the selection is empty', () => {
+    const editor = makeEditor({ value: 'select 1;', selectionValue: '' })
+    expect(getEditorSql(editor)).toBe('select 1;')
+  })
+
+  it('falls back to snippet content only when there is no editor value', () => {
+    // Real Monaco always returns a string from getValue(); this guards the
+    // last-resort snippet-content fallback contract.
+    const editor = makeEditor({ value: undefined, hasSelection: false })
+    expect(getEditorSql(editor, untrustedSql('stored sql'))).toBe('stored sql')
+  })
+})
+
+describe('SQLEditor.utils:computeErrorHighlightLine', () => {
+  it('parses the LINE marker and offsets by the selection start line', () => {
+    const error = { formattedError: 'ERROR:  syntax error\nLINE 3: slect 1;\n        ^' }
+    expect(computeErrorHighlightLine(error, 0)).toBe(3)
+    expect(computeErrorHighlightLine(error, 5)).toBe(8)
+  })
+
+  it('returns NaN when there is no LINE marker', () => {
+    expect(computeErrorHighlightLine({ formattedError: 'boom' }, 0)).toBeNaN()
+  })
+
+  it('returns NaN when formattedError is missing', () => {
+    expect(computeErrorHighlightLine({}, 2)).toBeNaN()
+  })
+})
+
+describe('SQLEditor.utils:assembleCompletionDiff', () => {
+  it('assembles original and modified from before/selection/after', () => {
+    const result = assembleCompletionDiff(
+      { textBeforeCursor: 'a ', selection: 'b', textAfterCursor: ' c' },
+      'X'
+    )
+    expect(result).toEqual({ original: 'a b c', modified: 'a X c' })
+  })
+
+  it('treats missing metadata fields as empty strings', () => {
+    expect(assembleCompletionDiff({}, 'X')).toEqual({ original: '', modified: 'X' })
+  })
+})
+
+describe('SQLEditor.utils:buildExplainSql', () => {
+  it('wraps a non-EXPLAIN query in EXPLAIN ANALYZE and a rollback transaction', () => {
+    const result = buildExplainSql(safeSql`select 1`)
+    expect(result).toMatch(/begin;/i)
+    expect(result).toMatch(/explain analyze select 1/i)
+    expect(result).toMatch(/rollback;/i)
+  })
+
+  it('does not double-wrap a query that is already an EXPLAIN', () => {
+    const result = buildExplainSql(safeSql`explain select 1`)
+    expect(result).toMatch(/explain select 1/i)
+    expect(result).not.toMatch(/analyze/i)
+    expect(result).toMatch(/rollback;/i)
+  })
+})
+
+describe('SQLEditor.utils:buildDebugPromptText', () => {
+  it('builds the debug prompt with the error message and SQL block', () => {
+    const result = buildDebugPromptText('select 1;', 'relation does not exist')
+    expect(result).toContain('relation does not exist')
+    expect(result).toContain('```sql\nselect 1;\n```')
   })
 })
