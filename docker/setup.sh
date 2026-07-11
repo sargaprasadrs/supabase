@@ -17,8 +17,13 @@
 #   sh setup.sh --project-dir my-supabase  # name the project directory
 #   sh setup.sh --skip-deps                # skip system-package installation
 #   sh setup.sh --with-aws                 # also install the AWS CLI v2
+#   sh setup.sh --ref self-hosted/v0.7.0   # clone docker/ from a specific git ref
+#   sh setup.sh --head                     # clone docker/ from HEAD (skip tags)
 #
 #   curl -fsSL <url-to-this-script> | sh   # bootstrap from scratch in CWD
+#
+# By default the docker/ sources are cloned from the latest self-hosted release
+# tag (self-hosted/v*), falling back to the default branch (HEAD) if none exist.
 #
 
 set -e
@@ -27,6 +32,8 @@ PROJECT_DIR="supabase-project"
 SKIP_DEPS=0
 WITH_AWS=0
 ASSUME_YES=0
+SOURCE_REF=""
+FORCE_HEAD=0
 
 print_help() {
     cat <<EOF
@@ -36,6 +43,10 @@ Options:
   -p, --project-dir <name>  Name of the project directory (default: supabase-project)
       --skip-deps           Skip installation of system packages
       --with-aws            Install the AWS CLI v2
+      --ref <tag|branch>    Clone docker/ from this git ref instead of the
+                            latest self-hosted tag (no HEAD fallback)
+      --head                Clone docker/ from the default branch (HEAD),
+                            skipping self-hosted tag detection
   -y, --yes                 Non-interactive: accept defaults, no prompts
   -h, --help                Show this help and exit
 EOF
@@ -46,6 +57,8 @@ while [ $# -gt 0 ]; do
         -p|--project-dir) PROJECT_DIR="$2"; shift 2 ;;
         --skip-deps) SKIP_DEPS=1; shift ;;
         --with-aws) WITH_AWS=1; shift ;;
+        --ref) SOURCE_REF="$2"; shift 2 ;;
+        --head) FORCE_HEAD=1; shift ;;
         -y|--yes) ASSUME_YES=1; shift ;;
         -h|--help) print_help; exit 0 ;;
         *) echo "Unknown option: $1" >&2; print_help; exit 1 ;;
@@ -205,20 +218,85 @@ install_aws() {
 
 SRC_DIR=""
 SRC_TMP=""
+RESOLVED_REF=""
+REPO_URL="${SUPABASE_REPO_URL:-https://github.com/supabase/supabase}"
+STAMP_FILE=".supabase-version"
+
+# Highest self-hosted/v* tag on the remote, or empty. Same resolver as update.sh.
+latest_release_tag() {
+    git ls-remote --tags --refs "$REPO_URL" 2>/dev/null \
+        | sed 's#^.*refs/tags/##' \
+        | grep -E '^self-hosted/v[0-9]' \
+        | sort -V | tail -n1
+}
+
+# Sparse-clone docker/ from the latest self-hosted tag, falling back to HEAD.
+sparse_clone() {
+    # sparse_clone <dest> [ref]  -> clone docker/ only; ref empty means default branch
+    dest="$1"
+    ref="$2"
+    if [ -n "$ref" ]; then
+        git clone --filter=blob:none --no-checkout --depth=1 --quiet \
+            --branch "$ref" "$REPO_URL" "$dest" 2>/dev/null || return 1
+    else
+        git clone --filter=blob:none --no-checkout --depth=1 --quiet \
+            "$REPO_URL" "$dest" 2>/dev/null || return 1
+    fi
+    ( cd "$dest" &&
+      git sparse-checkout init --cone &&
+      git sparse-checkout set docker &&
+      git checkout --quiet ) 2>/dev/null || return 1
+}
+
+# Echo the commit the clone resolved to (for stamping HEAD-based checkouts).
+resolved_sha() {
+    git -C "$1" rev-parse HEAD 2>/dev/null || true
+}
 
 prepare_source() {
-    log "Sparse-cloning supabase repo"
     SRC_TMP=$(mktemp -d) || return 1
-    git clone --filter=blob:none --no-checkout --depth=1 --quiet \
-        https://github.com/supabase/supabase "$SRC_TMP/supabase" 2>/dev/null || \
-    { rm -rf "$SRC_TMP"; return 1; }
+    dest="$SRC_TMP/supabase"
 
-    cd "$SRC_TMP/supabase" || { rm -rf "$SRC_TMP"; return 1; }
-    git sparse-checkout init --cone && \
-    git sparse-checkout set docker && \
-    git checkout --quiet 2>/dev/null
-    SRC_DIR="$PWD/docker"
-    cd - > /dev/null
+    # Explicit ref (--ref): clone it directly, no fallback.
+    if [ -n "$SOURCE_REF" ]; then
+        log "Sparse-cloning supabase repo at requested ref: $SOURCE_REF"
+        sparse_clone "$dest" "$SOURCE_REF" || die "Could not clone ref '$SOURCE_REF' from $REPO_URL"
+        RESOLVED_REF="$SOURCE_REF"
+        SRC_DIR="$dest/docker"
+        return 0
+    fi
+
+    # Forced HEAD (--head): skip tag detection entirely.
+    if [ "$FORCE_HEAD" = "1" ]; then
+        log "Sparse-cloning supabase repo at HEAD (--head)"
+        sparse_clone "$dest" "" || { rm -rf "$SRC_TMP"; return 1; }
+        RESOLVED_REF=$(resolved_sha "$dest")
+        SRC_DIR="$dest/docker"
+        return 0
+    fi
+
+    tag=$(latest_release_tag)
+    if [ -n "$tag" ]; then
+        log "Sparse-cloning supabase repo at latest self-hosted tag: $tag"
+        if ! sparse_clone "$dest" "$tag"; then
+            warn "Clone of $tag failed; falling back to the default branch (HEAD)"
+            rm -rf "$dest"
+            tag=""
+        fi
+    else
+        log "No self-hosted release tag found; using the default branch (HEAD)"
+    fi
+
+    if [ -z "$tag" ]; then
+        log "Sparse-cloning supabase repo at HEAD"
+        sparse_clone "$dest" "" || { rm -rf "$SRC_TMP"; return 1; }
+        # No release tag yet: stamp the commit SHA so update.sh has an exact base.
+        RESOLVED_REF=$(resolved_sha "$dest")
+    else
+        RESOLVED_REF="$tag"
+    fi
+
+    SRC_DIR="$dest/docker"
 }
 
 cleanup_src_tmp() {
@@ -230,6 +308,20 @@ trap cleanup_src_tmp EXIT
 
 read_env() {
     grep "^$1=" .env 2>/dev/null | head -n1 | cut -d= -f2-
+}
+
+# Record the base version this deployment was set up from, so update.sh can
+# 3-way merge future upgrades against it. Just the ref - update.sh derives the
+# changelog date from the base snapshot it fetches at that ref. Per-deployment
+# state, not vendor content: gitignored, never committed.
+write_version_stamp() {
+    [ -n "$1" ] || { warn "Could not resolve a base ref; skipping $STAMP_FILE"; return 0; }
+    {
+        echo "# Supabase self-hosted version stamp. Managed by setup.sh / update.sh."
+        echo "# Do not commit or edit by hand. Records the ref this deployment was based on."
+        echo "ref=$1"
+    } > "$STAMP_FILE"
+    log "Recorded base version in $STAMP_FILE (ref=$1)"
 }
 
 # --- Main ---
@@ -323,6 +415,8 @@ sh utils/generate-keys.sh --update-env
 
 log "Generating asymmetric key pair and opaque API keys"
 sh utils/add-new-auth-keys.sh --update-env
+
+write_version_stamp "$RESOLVED_REF"
 
 log "Pulling Docker images"
 docker compose pull || warn "docker compose pull failed; you can retry later."
