@@ -50,8 +50,11 @@ cd "$(dirname "$0")"
 # Git is only used to fetch snapshots (fetch_snapshot) and to run git merge-file.
 #
 # Breaking-change gate (upgrades.json on the target snapshot):
-#   - Window: manifest dates in (BASE_DATE, TARGET_DATE] (stamp date → target
-#     CHANGELOG top ## [YYYY-MM-DD]); compared as integers after stripping dashes.
+#   - Keyed by version (e.g. "0.7.0"); window = entries in (BASE_VER, TARGET_VER],
+#     where the bounds are the base/target refs reduced to bare semver
+#     (self-hosted/vX.Y.Z -> X.Y.Z) and compared with sort -V.
+#   - If a bound is not a release tag (a commit SHA, or "master"), that side of
+#     the window is left open and all applicable entries are shown with a warning.
 #   - Prompt when an entry has breaking:true or a gate script; runs before
 #     backup/merge so abort leaves the deployment untouched.
 #   - CHANGELOG.md is display-only; routine "requires compose update" items are
@@ -76,8 +79,8 @@ FROM_REF=""
 
 TARGET_REF=""
 BASE_REF=""
-BASE_DATE=""
-TARGET_DATE=""
+BASE_VER=""
+TARGET_VER=""
 REPORT_ONLY=0
 
 TMP_ROOT=""
@@ -145,16 +148,6 @@ read_stamp_ref() {
     [ -n "$val" ] && printf '%s' "$val"
 }
 
-read_stamp_date() {
-    [ -f "$STAMP_FILE" ] || return 1
-    grep -E '^date=' "$STAMP_FILE" 2>/dev/null | head -n1 | cut -d= -f2- | tr -d "\r\"' "
-}
-
-changelog_top_date() {
-    grep -oE '## \[[0-9]{4}-[0-9]{2}-[0-9]{2}\]' "$1" 2>/dev/null \
-        | head -n1 | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' || true
-}
-
 record() { printf '%s:%s\n' "$1" "$2" >> "$REPORT"; }
 
 count_status() { grep -cE "^$1:" "$REPORT" 2>/dev/null || true; }
@@ -204,6 +197,32 @@ list_files() {
     ( cd "$1" && find . -type f | sed 's|^\./||' | grep -vE '^\.git(/|$)' | sort )
 }
 
+# normalize_version <ref> — reduce a ref to bare semver (0.7.0) for comparison,
+# or empty when it is not a self-hosted release tag (commit SHA, "master", …).
+normalize_version() {
+    _v="${1#refs/tags/}"
+    _v="${_v#self-hosted/}"
+    _v="${_v#v}"
+    case "$_v" in
+        [0-9]*.[0-9]*) printf '%s' "$_v" ;;
+        *) ;;
+    esac
+}
+
+# ver_gt A B — true when version A is strictly greater than B (sort -V order).
+ver_gt() {
+    if [ "$1" = "$2" ]; then return 1; fi
+    [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n1)" = "$1" ]
+}
+
+# ver_in_window VER — true when BASE_VER < VER <= TARGET_VER. An empty bound
+# leaves that side open (over-reports a gate rather than hiding one).
+ver_in_window() {
+    if [ -n "$TARGET_VER" ] && ver_gt "$1" "$TARGET_VER"; then return 1; fi
+    if [ -n "$BASE_VER" ] && ! ver_gt "$1" "$BASE_VER"; then return 1; fi
+    return 0
+}
+
 # --- ref resolution ----------------------------------------------------------
 
 resolve_target_ref() {
@@ -230,7 +249,6 @@ resolve_base_ref() {
         REPORT_ONLY=1
         BASE_REF=""
     fi
-    BASE_DATE=$(read_stamp_date 2>/dev/null || true)
 }
 
 print_report_only_guidance() {
@@ -240,11 +258,11 @@ print_report_only_guidance() {
 Without a base version a safe 3-way merge is not possible. To fix this, find the
 version your deployment was based on and record it, then re-run:
 
-  1. Identify your base. Cross-reference the image tags in your docker-compose.yml
-     / .env against docker/versions.md, or use the most recent date in CHANGELOG.md
-     that you remember pulling.
+  1. Identify your base — the self-hosted/vX.Y.Z release (or commit) your files
+     came from. Cross-reference the image tags in docker-compose.yml / .env
+     against versions.md, or the newest CHANGELOG.md section you remember pulling.
   2. Write it to $STAMP_FILE, e.g.:
-         printf 'ref=<commit-sha-or-tag>\ndate=<YYYY-MM-DD>\n' > $STAMP_FILE
+         printf 'ref=self-hosted/v0.7.0\n' > $STAMP_FILE
   3. Re-run: sh update.sh
 
 Or supply it inline for this run:  sh update.sh --from <commit-sha-or-tag>
@@ -298,14 +316,17 @@ build_changelog_slice() {
     : > "$CHANGELOG_SLICE"
     [ -f "$_changelog" ] || return 0
 
-    if [ -n "$BASE_DATE" ]; then
-        awk -v stop="## [$BASE_DATE]" '
+    if [ -n "$BASE_VER" ]; then
+        # Everything above the "## [<base_ver>]" heading (headings are version-
+        # keyed, e.g. "## [0.7.0](...) - 2026-07-07").
+        awk -v stop="## [$BASE_VER]" '
             index($0, stop) == 1 { exit }
             { print }
         ' "$_changelog" > "$CHANGELOG_SLICE"
     else
+        # Unknown base version: show down to the second versioned heading.
         awk '
-            /^## \[/ { dated++ ; if (dated == 2) exit }
+            /^## \[/ { seen++; if (seen == 2) exit }
             { print }
         ' "$_changelog" > "$CHANGELOG_SLICE"
     fi
@@ -313,7 +334,7 @@ build_changelog_slice() {
 
 # --- breaking-change gate (manifest-driven, before any writes) ---------------
 # Reads docker/upgrades.json from the target snapshot. The changelog slice is
-# display-only; gating keys off manifest entries in (BASE_DATE, TARGET_DATE].
+# display-only; gating keys off manifest entries in (BASE_VER, TARGET_VER].
 
 build_gate_report() {
     _manifest="$TARGET_DIR/upgrades.json"
@@ -328,16 +349,15 @@ build_gate_report() {
         return 0
     fi
 
-    base_n=""
-    target_n=""
-    if [ -n "$BASE_DATE" ];   then base_n=$(echo "$BASE_DATE" | tr -d '-'); fi
-    if [ -n "$TARGET_DATE" ]; then target_n=$(echo "$TARGET_DATE" | tr -d '-'); fi
+    if [ -z "$BASE_VER" ] || [ -z "$TARGET_VER" ]; then
+        warn "Base or target is not a self-hosted/vX.Y.Z tag; cannot compute an exact"
+        warn "upgrade window. Showing all applicable manual-action releases — review"
+        warn "which ones apply to your deployment."
+    fi
 
     for k in $(jq -r 'keys[]' "$_manifest" 2>/dev/null); do
-        case "$k" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) continue ;; esac
-        k_n=$(echo "$k" | tr -d '-')
-        if [ -n "$target_n" ] && [ "$k_n" -gt "$target_n" ]; then continue; fi
-        if [ -n "$base_n" ]; then [ "$k_n" -gt "$base_n" ] || continue; fi
+        case "$k" in [0-9]*.[0-9]*) ;; *) continue ;; esac
+        ver_in_window "$k" || continue
 
         breaking=$(jq -r --arg k "$k" '.[$k].breaking // false' "$_manifest")
         gate=$(jq -r --arg k "$k" '.[$k].gate // empty' "$_manifest")
@@ -561,11 +581,10 @@ print_summary() {
 }
 
 write_stamp() {
-    _date=$(changelog_top_date "$TARGET_DIR/CHANGELOG.md")
     {
         echo "# Supabase self-hosted version stamp. Managed by setup.sh / update.sh."
+        echo "# Do not commit or edit by hand. Records the ref this deployment was based on."
         echo "ref=$TARGET_REF"
-        [ -n "$_date" ] && echo "date=$_date"
     } > "$STAMP_FILE"
 }
 
@@ -596,6 +615,8 @@ command -v git >/dev/null 2>&1 || die "git is required but was not found on PATH
 
 resolve_target_ref
 resolve_base_ref
+TARGET_VER=$(normalize_version "$TARGET_REF")
+BASE_VER=$(normalize_version "$BASE_REF")
 [ "$REPORT_ONLY" = "1" ] && print_report_only_guidance
 
 TMP_ROOT=$(mktemp -d)
@@ -614,7 +635,6 @@ if [ "$REPORT_ONLY" = "1" ]; then
     exit 0
 fi
 
-TARGET_DATE=$(changelog_top_date "$TARGET_DIR/CHANGELOG.md")
 build_changelog_slice
 build_gate_report
 confirm_gate

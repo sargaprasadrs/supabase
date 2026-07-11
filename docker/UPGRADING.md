@@ -59,6 +59,16 @@ You edited a vendor file and upstream changed the same file. Pick the correct
 content (yours, upstream, or a combination), remove the markers, then run
 `sh run.sh pull && sh run.sh recreate`.
 
+### Custom auth providers (OAuth, SMS, SAML)
+
+Enabling an external provider currently means uncommenting its lines in
+`docker-compose.yml` (a vendor file) and filling in the matching keys in `.env`
+— see the comments in `.env.example`. Those uncommented lines are your edits,
+and `update.sh` keeps them: the 3-way merge only reports a **conflict** if a
+release changes the very same lines (for example renaming a provider variable),
+which it flags for you to resolve. A cleaner split that moves provider config
+into a file the upgrader never touches is planned for a future release.
+
 ### Breaking-change prompt
 
 Some releases need manual steps first (for example a Postgres major upgrade).
@@ -79,7 +89,7 @@ Without a recorded base version the script cannot merge safely. It runs in
 2. Write the stamp:
 
    ```sh
-   printf 'ref=<tag-or-commit>\ndate=<YYYY-MM-DD>\n' > .supabase-version
+   printf 'ref=<tag-or-commit>\n' > .supabase-version
    ```
 
    Or pass the base inline: `sh update.sh --from <tag-or-commit>`.
@@ -103,5 +113,3 @@ Your database backup is separate.
 - [CHANGELOG.md](./CHANGELOG.md) — what changed in each release
 - [versions.md](./versions.md) — image version history
 - [CONFIG.md](./CONFIG.md) — environment variable reference
-
-For maintainers cutting releases, see [RELEASING.md](./RELEASING.md).

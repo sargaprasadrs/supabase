@@ -2,10 +2,11 @@
 #
 # Hermetic test for update.sh (the self-hosted in-place upgrade script).
 #
-# Builds a tiny synthetic "upstream" git repo with two tagged commits
-# (b-base -> b-target), simulates a configured deployment based on b-base
-# (with secrets, an override, modified vendor files, and data dirs), then runs
-# update.sh and asserts the 3-way merge behaves: secrets/data preserved, new
+# Builds a tiny synthetic "upstream" git repo with two tagged releases
+# (self-hosted/v0.9.0 -> self-hosted/v1.0.0), simulates a configured deployment
+# based on v0.9.0 (with secrets, an override, modified vendor files, and data
+# dirs), then runs update.sh and asserts the 3-way merge behaves: secrets/data
+# preserved, new
 # .env keys added, clean merges applied, real conflicts reported, the version
 # stamp advanced, a backup taken. Also covers --dry-run and the missing-stamp
 # report-only path.
@@ -73,7 +74,7 @@ EOF
 cat > docker/CHANGELOG.md <<'EOF'
 # Changelog
 
-## [2026-01-02]
+## [0.9.0](https://example.test/releases/self-hosted/v0.9.0) - 2026-01-02
 - old stuff
 EOF
 printf 'base kong\n' > docker/volumes/api/kong.yml
@@ -81,7 +82,7 @@ printf 'remove me\n'  > docker/old-only.txt
 cp "$DOCKER_DIR/.gitignore" docker/.gitignore
 mkdir -p docker/volumes/functions/main
 printf 'base main\n' > docker/volumes/functions/main/index.ts
-git add -A && git commit -qm base && git tag b-base
+git add -A && git commit -qm base && git tag self-hosted/v0.9.0
 
 # target commit
 cat > docker/docker-compose.yml <<'EOF'
@@ -100,10 +101,10 @@ EOF
 cat > docker/CHANGELOG.md <<'EOF'
 # Changelog
 
-## [2026-02-01]
+## [1.0.0](https://example.test/releases/self-hosted/v1.0.0) - 2026-02-01
 - ⚠️ Breaking: did a thing (requires docker-compose.yml update)
 
-## [2026-01-02]
+## [0.9.0](https://example.test/releases/self-hosted/v0.9.0) - 2026-01-02
 - old stuff
 EOF
 printf 'brand new\n' > docker/new-only.txt
@@ -112,7 +113,7 @@ mkdir -p docker/volumes/functions/hello
 printf 'target hello\n' > docker/volumes/functions/hello/index.ts
 cat > docker/upgrades.json <<'EOF'
 {
-  "2026-02-01": {
+  "1.0.0": {
     "breaking": true,
     "gate": "utils/demo-migrate.sh",
     "migration_guide_url": "https://example.test/guide",
@@ -123,16 +124,15 @@ EOF
 git rm -q docker/old-only.txt
 git add -A
 git add -f docker/volumes/functions/hello/index.ts
-git commit -qm target && git tag b-target
-# Release tag for the default-target (latest self-hosted/v*) path.
-git tag self-hosted/v1.0.0
+# Release tag for the target / default-target (latest self-hosted/v*) path.
+git commit -qm target && git tag self-hosted/v1.0.0
 
 # --- helper: lay down a deployment based on b-base --------------------------
 
 make_deploy() { # <dir>
     d="$1"
     mkdir -p "$d"
-    git -C "$SRC" archive b-base docker | tar -x -C "$d" --strip-components=1
+    git -C "$SRC" archive self-hosted/v0.9.0 docker | tar -x -C "$d" --strip-components=1
     cp "$UPDATE_SH" "$d/update.sh"
     # configured .env: real secret, an extra user key, keep KEEP_ME default
     cp "$d/.env.example" "$d/.env"
@@ -155,8 +155,8 @@ make_deploy() { # <dir>
     # legacy sample fn in snapshot at target but gitignored — must not overwrite
     mkdir -p "$d/volumes/functions/hello"
     printf 'user hello\n' > "$d/volumes/functions/hello/index.ts"
-    # version stamp pointing at the base
-    printf 'ref=b-base\ndate=2026-01-02\n' > "$d/.supabase-version"
+    # version stamp pointing at the base (ref only; update.sh derives the rest)
+    printf 'ref=self-hosted/v0.9.0\n' > "$d/.supabase-version"
 }
 
 echo ""
@@ -166,7 +166,7 @@ DEPLOY="$WORK/deploy"
 make_deploy "$DEPLOY"
 cd "$DEPLOY"
 rc=0
-SUPABASE_REPO_URL="$SRC" sh ./update.sh --to b-target --yes > "$WORK/apply.log" 2>&1 || rc=$?
+SUPABASE_REPO_URL="$SRC" sh ./update.sh --to self-hosted/v1.0.0 --yes > "$WORK/apply.log" 2>&1 || rc=$?
 
 cat "$WORK/apply.log" | sed 's/^/      | /'
 
@@ -184,7 +184,7 @@ assert_file_contains  "docker-compose.yml" "supabase/postgres:17" "non-conflicti
 assert_path_exists    "new-only.txt"                             "new upstream file added"
 assert_path_exists    "old-only.txt"                             "removed-upstream file left in place"
 assert_file_contains  "volumes/api/kong.yml" "user added line"   "clean merge preserved user line"
-assert_file_contains  ".supabase-version" "ref=b-target"         "version stamp advanced"
+assert_file_contains  ".supabase-version" "ref=self-hosted/v1.0.0" "version stamp advanced"
 assert_file_contains  "$WORK/apply.log" "CONFLICT"              "conflict reported in output"
 assert_file_contains  "$WORK/apply.log" "Breaking: did a thing" "breaking changelog line surfaced"
 assert_file_contains  "$WORK/apply.log" "Run the demo migration first." "manifest gate step surfaced"
@@ -214,10 +214,10 @@ echo "=== update.sh: --dry-run writes nothing ==="
 DRYD="$WORK/dry"
 make_deploy "$DRYD"
 cd "$DRYD"
-SUPABASE_REPO_URL="$SRC" sh ./update.sh --to b-target --dry-run > "$WORK/dry.log" 2>&1 || true
+SUPABASE_REPO_URL="$SRC" sh ./update.sh --to self-hosted/v1.0.0 --dry-run > "$WORK/dry.log" 2>&1 || true
 assert_file_missing_pattern ".env" "NEW_KEY"              "dry-run did not append env key"
 assert_file_missing_pattern "docker-compose.yml" "<<<<<<<" "dry-run did not write conflict"
-assert_file_contains ".supabase-version" "ref=b-base"     "dry-run left stamp unchanged"
+assert_file_contains ".supabase-version" "ref=self-hosted/v0.9.0" "dry-run left stamp unchanged"
 assert_path_absent   "backups"                            "dry-run took no backup"
 assert_file_contains "$WORK/dry.log" "DRY RUN"            "dry-run labeled output"
 
@@ -229,7 +229,7 @@ make_deploy "$MISS"
 cd "$MISS"
 rm -f .supabase-version
 rc=0
-SUPABASE_REPO_URL="$SRC" sh ./update.sh --to b-target > "$WORK/miss.log" 2>&1 || rc=$?
+SUPABASE_REPO_URL="$SRC" sh ./update.sh --to self-hosted/v1.0.0 > "$WORK/miss.log" 2>&1 || rc=$?
 if [ "$rc" = "0" ]; then ok "report-only exits 0"; else bad "report-only expected exit 0, got $rc"; fi
 assert_file_contains "$WORK/miss.log" "REPORT-ONLY"       "report-only mode announced"
 assert_file_missing_pattern ".env" "NEW_KEY"             "report-only wrote nothing to .env"
