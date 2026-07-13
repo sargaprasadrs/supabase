@@ -67,7 +67,7 @@ export const EdgeFunctionInvocationsSection = ({
     [chartErrorMessage, isErrorChart]
   )
   return (
-    <PageSection>
+    <PageSection className="pt-0">
       <PageSectionMeta>
         <PageSectionSummary>
           <PageSectionTitle>
