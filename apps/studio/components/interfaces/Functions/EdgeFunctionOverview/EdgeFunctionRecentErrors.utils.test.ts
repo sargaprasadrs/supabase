@@ -99,14 +99,33 @@ limit 25`)
     expect(getSinceLastDeployLogRange(deployedAt)).toEqual({
       isoTimestampStart: deployedAt,
       isoTimestampEnd: '2026-03-20T12:00:00.000Z',
+      isTruncatedToLookback: false,
     })
 
     expect(getSinceLastDeployLogRange('2026-03-20T13:00:00.000Z')).toEqual({
       isoTimestampStart: '2026-03-20T13:00:00.000Z',
       isoTimestampEnd: '2026-03-20T13:00:00.000Z',
+      isTruncatedToLookback: false,
     })
 
     expect(getSinceLastDeployLogRange()).toEqual({})
+  })
+
+  it('clamps the logs query range to the last 24 hours when the last deploy is older than that', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-20T12:00:00.000Z'))
+
+    expect(getSinceLastDeployLogRange('2026-01-01T00:00:00.000Z')).toEqual({
+      isoTimestampStart: '2026-03-19T12:00:00.000Z',
+      isoTimestampEnd: '2026-03-20T12:00:00.000Z',
+      isTruncatedToLookback: true,
+    })
+
+    expect(getSinceLastDeployLogRange('2026-03-19T13:00:00.000Z')).toEqual({
+      isoTimestampStart: '2026-03-19T13:00:00.000Z',
+      isoTimestampEnd: '2026-03-20T12:00:00.000Z',
+      isTruncatedToLookback: false,
+    })
   })
 
   it('builds the since-deploy invocation count query and empty-state message', () => {

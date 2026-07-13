@@ -18,6 +18,7 @@ import {
   PageSection,
   PageSectionAside,
   PageSectionContent,
+  PageSectionDescription,
   PageSectionMeta,
   PageSectionSummary,
   PageSectionTitle,
@@ -66,12 +67,13 @@ export const EdgeFunctionRecentErrors = ({
   const router = useRouter()
   const { openSidebar } = useSidebarManagerSnapshot()
   const aiAssistant = useAiAssistantStateSnapshot()
-  const { isoTimestampStart, isoTimestampEnd } = useMemo(
+  const { isoTimestampStart, isoTimestampEnd, isTruncatedToLookback } = useMemo(
     () => getSinceLastDeployLogRange(updatedAt),
     [updatedAt]
   )
   const emptyStateFallback =
     'Runtime errors since the last deploy will appear here when this function returns a 5xx response.'
+  const sinceLastDeployPhrase = isTruncatedToLookback ? 'in the last 24 hours' : 'since last deploy'
 
   const isQueryEnabled = Boolean(projectRef && functionId && isoTimestampStart)
   const recentErrorInvocationsSql = useMemo(
@@ -160,8 +162,8 @@ export const EdgeFunctionRecentErrors = ({
 
     return (
       <>
-        There {verb} been <span className="text-foreground">{invocationPhrase}</span> since last
-        deploy and no errors.
+        There {verb} been <span className="text-foreground">{invocationPhrase}</span>{' '}
+        {sinceLastDeployPhrase} and no errors.
       </>
     )
   }, [
@@ -169,6 +171,7 @@ export const EdgeFunctionRecentErrors = ({
     isoTimestampStart,
     sinceLastDeployInvocationCount,
     sinceLastDeployInvocationCountError,
+    sinceLastDeployPhrase,
   ])
   const emptyStateIcon =
     isoTimestampStart && !sinceLastDeployInvocationCountError ? (
@@ -205,6 +208,12 @@ export const EdgeFunctionRecentErrors = ({
             <PageSectionMeta>
               <PageSectionSummary>
                 <PageSectionTitle>Errors since last deploy</PageSectionTitle>
+                {isTruncatedToLookback && (
+                  <PageSectionDescription>
+                    Showing errors from the last 24 hours only, as this function's last deploy was
+                    longer ago than that.
+                  </PageSectionDescription>
+                )}
               </PageSectionSummary>
               <PageSectionAside>
                 <Button

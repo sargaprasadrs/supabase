@@ -14,6 +14,7 @@ dayjs.extend(relativeTime)
 export const MAX_RECENT_ERROR_GROUPS = 5
 export const RECENT_ERROR_INVOCATIONS_LIMIT = 50
 export const RELATED_RUNTIME_LOGS_LIMIT = 100
+export const SINCE_LAST_DEPLOY_MAX_LOOKBACK_HOURS = 24
 const NUMERIC_TIMESTAMP_PATTERN = /^\d+(?:\.\d+)?$/
 
 export type GroupedRuntimeLog = {
@@ -134,10 +135,18 @@ export const getSinceLastDeployLogRange = (updatedAt?: string | number, now: Dat
   const startDate = new Date(isoTimestampStart)
   const normalizedNow = new Date(now)
   const endDate = Number.isNaN(normalizedNow.valueOf()) ? new Date() : normalizedNow
+  const isoTimestampEndDate = new Date(Math.max(startDate.valueOf(), endDate.valueOf()))
+
+  const maxLookbackStartDate = new Date(
+    isoTimestampEndDate.valueOf() - SINCE_LAST_DEPLOY_MAX_LOOKBACK_HOURS * 60 * 60 * 1000
+  )
+  const isTruncatedToLookback = startDate.valueOf() < maxLookbackStartDate.valueOf()
+  const isoTimestampStartDate = isTruncatedToLookback ? maxLookbackStartDate : startDate
 
   return {
-    isoTimestampStart,
-    isoTimestampEnd: new Date(Math.max(startDate.valueOf(), endDate.valueOf())).toISOString(),
+    isoTimestampStart: isoTimestampStartDate.toISOString(),
+    isoTimestampEnd: isoTimestampEndDate.toISOString(),
+    isTruncatedToLookback,
   }
 }
 
