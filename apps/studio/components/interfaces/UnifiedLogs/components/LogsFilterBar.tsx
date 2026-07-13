@@ -7,7 +7,6 @@ import {
   FilterCondition,
   type FilterBarHandle,
   type FilterGroup,
-  type FilterProperty,
 } from 'ui-patterns/FilterBar'
 
 import {
@@ -15,14 +14,13 @@ import {
   type LogsColumnFilterValue,
   type LogsFilterOperator,
 } from '../UnifiedLogs.filters'
+import { buildFilterProperties, getUserFilterValue, USER_PROPERTY } from './LogsFilterBar.utils'
 import { searchAuthUserByEmail } from '@/components/interfaces/UserJourneys/UserJourneys.queries'
 import { useDataTable } from '@/components/ui/DataTable/providers/DataTableProvider'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
 import { UUID_REGEX } from '@/lib/constants'
 import { SHORTCUT_IDS } from '@/state/shortcuts/registry'
 import { useShortcut } from '@/state/shortcuts/useShortcut'
-
-const USER_PROPERTY = 'user'
 
 const buildFilterGroup = (
   columnFilters: { id: string; value: unknown }[],
@@ -60,35 +58,7 @@ export const LogsFilterBar = () => {
 
   const [freeformText, setFreeformText] = useState('')
 
-  const filterProperties: FilterProperty[] = [
-    ...filterFields
-      .filter((x) => x.type !== 'timerange')
-      .map(
-        (filter): FilterProperty => ({
-          label: filter.label,
-          name: filter.value,
-          type: 'string',
-          options: filter.options ?? [],
-          operators:
-            filter.value === 'event_message'
-              ? [
-                  { label: 'iLike', value: '~~*', group: 'pattern' },
-                  { label: 'Not iLike', value: '!~~*', group: 'pattern' },
-                ]
-              : [
-                  { label: 'Equals', value: '=', group: 'comparison' },
-                  { label: 'Not equal', value: '<>', group: 'comparison' },
-                ],
-        })
-      ),
-    {
-      label: 'User',
-      name: USER_PROPERTY,
-      type: 'string',
-      options: [],
-      operators: [{ label: 'Equals', value: '=', group: 'comparison' }],
-    },
-  ]
+  const filterProperties = buildFilterProperties(filterFields)
 
   const withUserCondition = (group: FilterGroup): FilterGroup => {
     if (!user) return group
@@ -145,10 +115,7 @@ export const LogsFilterBar = () => {
     )
     if (!isValid) return
 
-    const userCondition = (next.conditions as FilterCondition[]).find(
-      (c) => c.propertyName === USER_PROPERTY
-    )
-    applyUser(userCondition ? String(userCondition.value) : undefined)
+    applyUser(getUserFilterValue(next.conditions as FilterCondition[]))
 
     const wrappedByColumn = new Map<string, LogsColumnFilterValue>()
     for (const cond of next.conditions as FilterCondition[]) {
