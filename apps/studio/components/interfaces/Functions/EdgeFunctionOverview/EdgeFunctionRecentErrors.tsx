@@ -1,3 +1,4 @@
+import dayjs from 'dayjs'
 import { BookOpen, Check, ExternalLink, Eye } from 'lucide-react'
 import { useRouter } from 'next/router'
 import { Fragment, useMemo } from 'react'
@@ -24,6 +25,7 @@ import {
   PageSectionTitle,
 } from 'ui-patterns/PageSection'
 import { GenericSkeletonLoader } from 'ui-patterns/ShimmeringLoader'
+import { TimestampInfo } from 'ui-patterns/TimestampInfo'
 
 import {
   buildGroupAssistantPrompt,
@@ -208,10 +210,11 @@ export const EdgeFunctionRecentErrors = ({
             <PageSectionMeta>
               <PageSectionSummary>
                 <PageSectionTitle>Errors since last deploy</PageSectionTitle>
-                {isTruncatedToLookback && (
+                {isTruncatedToLookback && updatedAt !== undefined && (
                   <PageSectionDescription>
-                    Showing errors from the last 24 hours only, as this function's last deploy was
-                    longer ago than that.
+                    Last deploy was{' '}
+                    <TimestampInfo utcTimestamp={updatedAt} label={dayjs(updatedAt).fromNow()} />,
+                    showing errors from the last 24 hours
                   </PageSectionDescription>
                 )}
               </PageSectionSummary>
