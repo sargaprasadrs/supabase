@@ -379,22 +379,23 @@ try {
 }
 
 // Changelog RSS + changelog.md → sourced from supabase/changelog entries/*.md (private repo).
-// No fallback source: if this fails, it throws and fails the build loudly rather
-// than silently degrading to a stale/partial data source.
-{
-  const { getPublishedChangelogEntries, fetchChangelogEntryFilesFromTarball, CHANGE_TYPE_LABELS } =
-    await import('../lib/changelog-entries-core.mjs')
-  const { generateChangelogRssXml, generateChangelogTagRssXml, labelToFileSlug } = await import(
-    '../lib/changelog-rss.mjs'
-  )
-
+// Optional: warns and skips rather than failing the build when the GitHub App secret isn't
+// configured (e.g. local dev without the secret, or before it's added in Vercel).
+async function generateChangelogContent() {
   const appId = process.env.CHANGELOG_SYNC_APP_ID
   const installationId = process.env.CHANGELOG_SYNC_APP_INSTALLATION_ID
   const privateKey = process.env.CHANGELOG_SYNC_APP_PRIVATE_KEY
 
   if (!appId || !installationId || !privateKey) {
-    throw new Error('CHANGELOG_SYNC_APP_* env vars not set — cannot generate changelog content')
+    console.warn('⚠️  CHANGELOG_SYNC_APP_* env vars not set — skipping changelog RSS/md generation')
+    return
   }
+
+  const { getPublishedChangelogEntries, fetchChangelogEntryFilesFromTarball, CHANGE_TYPE_LABELS } =
+    await import('../lib/changelog-entries-core.mjs')
+  const { generateChangelogRssXml, generateChangelogTagRssXml, labelToFileSlug } = await import(
+    '../lib/changelog-rss.mjs'
+  )
   const { createAppAuth } = await import('@octokit/auth-app')
   const { Octokit } = await import('@octokit/core')
   const octokit = new Octokit({
@@ -493,3 +494,4 @@ ${entry.bodySection}
   }
   console.log(`✅ Generated changelog/*.md (${entries.length} files)`)
 }
+await generateChangelogContent()
