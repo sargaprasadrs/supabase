@@ -4,6 +4,7 @@ set -euo pipefail
 lcov_file="$1"
 baseline_file="${2:-}"
 tolerance="${COVERAGE_TOLERANCE:-0.1}"
+enforce="${COVERAGE_ENFORCE:-true}"
 
 if [[ ! -f "$lcov_file" ]]; then
   echo "Coverage report not found at $lcov_file" >&2
@@ -44,7 +45,10 @@ dropped="$(awk -v baseline="$baseline" -v current="$current" -v tolerance="$tole
 if [[ "$dropped" == "yes" ]]; then
   echo "" >> "$summary"
   echo "Coverage dropped from ${baseline}% to ${current}% (allowed tolerance ${tolerance}%)." | tee -a "$summary" >&2
-  exit 1
+  if [[ "$enforce" == "true" ]]; then
+    exit 1
+  fi
+  exit 0
 fi
 
 echo "Coverage is at ${current}% (baseline ${baseline}%)." | tee -a "$summary"
