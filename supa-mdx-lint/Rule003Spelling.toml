@@ -379,6 +379,7 @@ allow_list = [
     "SolidJS",
     "Spotify",
     "Sqitch",
+    "subfield",
     "Supabase",
     "Supavisor",
     "SvelteKit",
