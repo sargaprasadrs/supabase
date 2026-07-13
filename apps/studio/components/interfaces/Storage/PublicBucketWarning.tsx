@@ -74,7 +74,7 @@ export function PublicBucketWarning({ projectRef, bucketId }: PublicBucketWarnin
           queryKey: storageKeys.publicBucketsWithSelectPolicies(projectRef, bucketId),
         }),
         queryClient.invalidateQueries({
-          queryKey: databasePoliciesKeys.list(projectRef, 'storage'),
+          queryKey: databasePoliciesKeys.list(projectRef, ['storage']),
         }),
       ])
       track('storage_public_bucket_select_policy_removed', { bucketId })
@@ -174,10 +174,10 @@ function PublicBucketWarningView(props: PublicBucketWarningViewProps): ReactNode
         }
         actions={
           <div className="flex gap-2">
-            <Button type="default" size="tiny" onClick={onDismiss}>
+            <Button variant="default" size="tiny" onClick={onDismiss}>
               Dismiss
             </Button>
-            <Button type="warning" size="tiny" onClick={onShowModal}>
+            <Button variant="warning" size="tiny" onClick={onShowModal}>
               Remove policy
             </Button>
           </div>

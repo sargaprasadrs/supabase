@@ -26,6 +26,7 @@ import {
   PASSWORD_PLACEHOLDER,
   resolveConnectionString,
 } from '@/components/interfaces/ConnectSheet/ConnectionString.utils'
+import { PasswordEncodingNote } from '@/components/interfaces/ConnectSheet/PasswordEncodingNote'
 import { ResetDbPasswordDialog } from '@/components/interfaces/Settings/Database/DatabaseSettings/ResetDbPasswordDialog'
 import { usePgbouncerConfigQuery } from '@/data/database/pgbouncer-config-query'
 import { useSupavisorConfigurationQuery } from '@/data/database/supavisor-configuration-query'
@@ -194,14 +195,11 @@ function DirectConnectionContent({ state, deploymentMode }: StepContentProps) {
     if (!temporaryDatabasePassword) return redactedConnectionString
 
     if (connectionType === 'psql') {
-      return `psql "${buildConnectionStringWithPassword(
-        safeConnectionString,
-        temporaryDatabasePassword
-      )}"`
+      return redactedConnectionString
     }
 
     return buildConnectionStringWithPassword(redactedConnectionString, temporaryDatabasePassword)
-  }, [connectionType, redactedConnectionString, safeConnectionString, temporaryDatabasePassword])
+  }, [connectionType, redactedConnectionString, temporaryDatabasePassword])
 
   const trackCopy = () => {
     const typeConfig = DATABASE_CONNECTION_TYPES.find((t) => t.id === connectionType)
@@ -240,6 +238,7 @@ function DirectConnectionContent({ state, deploymentMode }: StepContentProps) {
           <Badge>{poolerBadge}</Badge>
         </div>
       )}
+      {connectionString.includes(PASSWORD_PLACEHOLDER) && <PasswordEncodingNote />}
       <div className="overflow-hidden rounded-lg border bg-surface-75">
         <div data-connect-copy-value={redactedConnectionString}>
           <CodeBlock

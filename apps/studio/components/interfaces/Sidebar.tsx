@@ -95,7 +95,7 @@ export const Sidebar = ({ className, ...props }: SidebarProps) => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    type="text"
+                    variant="text"
                     className={`w-min px-1.5 mx-0.5 ${sidebarBehaviour === 'open' ? 'px-2!' : ''}`}
                     icon={<PanelLeftDashed size={ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} />}
                     aria-label="Sidebar control"
@@ -132,11 +132,11 @@ export const SidebarContent = ({ footer }: { footer?: ReactNode }) => {
       <AnimatePresence mode="wait">
         <SidebarContentPrimitive>
           {projectRef ? (
-            <motion.div key="project-links">
+            <motion.nav key="project-links">
               <ProjectLinks />
-            </motion.div>
+            </motion.nav>
           ) : (
-            <motion.div
+            <motion.nav
               key="org-links"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -144,7 +144,7 @@ export const SidebarContent = ({ footer }: { footer?: ReactNode }) => {
               transition={{ duration: 0.2, ease: 'easeOut' }}
             >
               <OrganizationLinks />
-            </motion.div>
+            </motion.nav>
           )}
         </SidebarContentPrimitive>
       </AnimatePresence>
@@ -159,6 +159,7 @@ export function SideBarNavLink({
   route,
   active,
   onClick,
+  isLoading,
   ...props
 }: {
   route: Route
@@ -183,6 +184,7 @@ export function SideBarNavLink({
   const buttonProps = {
     disabled: route.disabled,
     isActive: active,
+    isLoading,
     className: cn('text-sm', sidebarBehaviour === 'open' ? 'px-2!' : ''),
     size: 'default' as const,
     onClick: onClick,
@@ -237,7 +239,7 @@ const ActiveDot = ({ hasErrors, hasWarnings }: { hasErrors: boolean; hasWarnings
 const ProjectLinks = () => {
   const router = useRouter()
   const { ref } = useParams()
-  const { data: project } = useSelectedProjectQuery()
+  const { data: project, isPending: isProjectPending } = useSelectedProjectQuery()
   const { securityLints, errorLints } = useLints()
   const showReports = useIsFeatureEnabled('reports:all')
   const showLogs = useIsFeatureEnabled('logs:all')
@@ -276,72 +278,94 @@ const ProjectLinks = () => {
   const settingsRoutes = generateSettingsRoutes(ref)
 
   return (
-    <SidebarMenu>
+    <>
       <SidebarGroup className="gap-0.5">
-        <SideBarNavLink
-          key="home"
-          active={isUndefined(activeRoute) && !isUndefined(router.query.ref)}
-          route={{
-            key: 'HOME',
-            label: 'Project Overview',
-            icon: <Home size={ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} />,
-            link: `/project/${ref}`,
-            linkElement: <ProjectIndexPageLink projectRef={ref} />,
-            shortcutId: SHORTCUT_IDS.NAV_HOME,
-          }}
-        />
-        {toolRoutes.map((route, i) => (
+        <SidebarMenu>
           <SideBarNavLink
-            key={`tools-routes-${i}`}
-            route={route}
-            active={activeRoute === route.key}
+            key="home"
+            active={isUndefined(activeRoute) && !isUndefined(router.query.ref)}
+            route={{
+              key: 'HOME',
+              label: 'Project Overview',
+              icon: <Home size={ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} />,
+              link: `/project/${ref}`,
+              linkElement: <ProjectIndexPageLink projectRef={ref} />,
+              shortcutId: SHORTCUT_IDS.NAV_HOME,
+            }}
           />
-        ))}
+          {toolRoutes.map((route, i) => (
+            <SideBarNavLink
+              key={`tools-routes-${i}`}
+              route={route}
+              active={activeRoute === route.key}
+              isLoading={isProjectPending}
+            />
+          ))}
+        </SidebarMenu>
       </SidebarGroup>
       <Separator className="w-[calc(100%-1rem)] mx-auto" />
       <SidebarGroup className="gap-0.5">
-        {productRoutes.map((route, i) => (
-          <SideBarNavLink
-            key={`product-routes-${i}`}
-            route={route}
-            active={activeRoute === route.key}
-          />
-        ))}
+        <SidebarMenu>
+          {productRoutes.map((route, i) => (
+            <SideBarNavLink
+              key={`product-routes-${i}`}
+              route={route}
+              active={activeRoute === route.key}
+              isLoading={isProjectPending}
+            />
+          ))}
+        </SidebarMenu>
       </SidebarGroup>
       <Separator className="w-[calc(100%-1rem)] mx-auto" />
       <SidebarGroup className="gap-0.5">
-        {otherRoutes.map((route) => {
-          if (route.key === 'advisors') {
-            return (
-              <div className="relative" key={route.key}>
-                {!route.disabled && (
-                  <ActiveDot
-                    hasErrors={errorLints.length > 0}
-                    hasWarnings={securityLints.length > 0}
-                  />
-                )}
-                <SideBarNavLink key={route.key} route={route} active={activeRoute === route.key} />
-              </div>
-            )
-          } else {
-            return (
-              <SideBarNavLink key={route.key} route={route} active={activeRoute === route.key} />
-            )
-          }
-        })}
+        <SidebarMenu>
+          {otherRoutes.map((route) => {
+            if (route.key === 'advisors') {
+              return (
+                <SideBarNavLink
+                  key={route.key}
+                  route={route}
+                  active={activeRoute === route.key}
+                  isLoading={isProjectPending}
+                >
+                  {route.icon}
+                  <span>{route.label}</span>
+                  {!route.disabled && (
+                    <ActiveDot
+                      hasErrors={errorLints.length > 0}
+                      hasWarnings={securityLints.length > 0}
+                    />
+                  )}
+                </SideBarNavLink>
+              )
+            } else {
+              return (
+                <SideBarNavLink
+                  key={route.key}
+                  route={route}
+                  active={activeRoute === route.key}
+                  isLoading={isProjectPending}
+                />
+              )
+            }
+          })}
+        </SidebarMenu>
       </SidebarGroup>
       <Separator className="w-[calc(100%-1rem)] mx-auto" />
       {/* Settings routes to be added in with project/org nav */}
       <SidebarGroup className="gap-0.5">
-        {settingsRoutes.map((route, i) => (
-          <SideBarNavLink
-            key={`settings-routes-${i}`}
-            route={route}
-            active={activeRoute === route.key}
-          />
-        ))}
+        <SidebarMenu>
+          {settingsRoutes.map((route, i) => (
+            <SideBarNavLink
+              key={`settings-routes-${i}`}
+              route={route}
+              active={activeRoute === route.key}
+              isLoading={isProjectPending}
+            />
+          ))}
+        </SidebarMenu>
       </SidebarGroup>
-    </SidebarMenu>
+    </>
   )
 }
 
@@ -419,8 +443,8 @@ const OrganizationLinks = () => {
   if (!organizationSlug) return null
 
   return (
-    <SidebarMenu className="flex flex-col gap-1 items-start">
-      <SidebarGroup className="gap-0.5">
+    <SidebarGroup className="gap-0.5">
+      <SidebarMenu className="flex flex-col gap-1">
         {navMenuItems.map((item, i) => (
           <SideBarNavLink
             key={item.key}
@@ -441,7 +465,7 @@ const OrganizationLinks = () => {
             }}
           />
         ))}
-      </SidebarGroup>
-    </SidebarMenu>
+      </SidebarMenu>
+    </SidebarGroup>
   )
 }

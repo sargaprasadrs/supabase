@@ -1,4 +1,5 @@
 import dayjs from 'dayjs'
+import Link from 'next/link'
 import { type ReactNode } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 import {
@@ -14,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from 'ui'
-import { Admonition, ShimmeringLoader } from 'ui-patterns'
+import { Admonition } from 'ui-patterns/admonition'
+import { ShimmeringLoader } from 'ui-patterns/ShimmeringLoader'
 
 import type { ApprovalState, IApprovalFormSchema } from './ApiAuthorization.Schema'
 import {
@@ -193,6 +195,12 @@ function OrganizationsEmptyState(): ReactNode {
       type="warning"
       title="No organizations found"
       description="Create an organization before authorizing this request."
+      actions={[
+        // [Joshen] JFYI this is a short term solution to guide users with creating an org from here
+        <Button asChild key="new-org" variant="default">
+          <Link href="/new">Create an organization</Link>
+        </Button>,
+      ]}
     />
   )
 }
@@ -299,7 +307,7 @@ function FormFooter({
         onApprove={onApprove}
       />
       <Button
-        type="text"
+        variant="text"
         block
         loading={approvalState === 'declining'}
         disabled={approvalState !== 'indeterminate'}
@@ -309,7 +317,7 @@ function FormFooter({
       </Button>
       {redirectUrl && (
         <div className="mt-3 border-t border-muted pt-5">
-          <p className="text-center text-xs text-foreground-lighter">
+          <p className="text-center text-xs text-foreground-lighter text-balance">
             Authorizing will redirect you to <span className="text-foreground">{redirectUrl}</span>
           </p>
         </div>
@@ -333,7 +341,7 @@ function ApprovalButton({
 }: ApprovalButtonProps): ReactNode {
   return (
     <Button
-      type="primary"
+      variant="primary"
       block
       loading={approvalState === 'approving'}
       disabled={disabled}
