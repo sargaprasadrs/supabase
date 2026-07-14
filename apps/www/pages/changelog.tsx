@@ -344,7 +344,12 @@ function ChangelogIndex({ featured, restIndex, allIndex }: PageProps) {
                     const { label } = CHANGE_TYPE_DISPLAY[type]
                     const on = selectedTypes.has(type)
                     return (
-                      <button key={type} type="button" onClick={() => toggleChangeType(type)}>
+                      <button
+                        key={type}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleChangeType(type)}
+                      >
                         <Badge
                           variant={on ? 'success' : 'default'}
                           className={cn(!on && 'hover:text-foreground')}
@@ -365,7 +370,12 @@ function ChangelogIndex({ featured, restIndex, allIndex }: PageProps) {
                   {CHANGELOG_PRODUCT_TAGS.map(({ slug, label }) => {
                     const on = selectedTags.has(slug)
                     return (
-                      <button key={slug} type="button" onClick={() => toggleProductTag(slug)}>
+                      <button
+                        key={slug}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleProductTag(slug)}
+                      >
                         <Badge
                           variant={on ? 'success' : 'default'}
                           className={cn(!on && 'hover:text-foreground')}
@@ -386,7 +396,12 @@ function ChangelogIndex({ featured, restIndex, allIndex }: PageProps) {
                   {CHANGELOG_PRODUCT_STAGES.map(({ slug, label }) => {
                     const on = selectedStages.has(slug)
                     return (
-                      <button key={slug} type="button" onClick={() => toggleProductStage(slug)}>
+                      <button
+                        key={slug}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleProductStage(slug)}
+                      >
                         <Badge
                           variant={on ? 'success' : 'default'}
                           className={cn(!on && 'hover:text-foreground')}
@@ -407,7 +422,12 @@ function ChangelogIndex({ featured, restIndex, allIndex }: PageProps) {
                   {CHANGELOG_SELF_HOSTED_OPTIONS.map(({ slug, label }) => {
                     const on = selectedSelfHosted.has(slug)
                     return (
-                      <button key={slug} type="button" onClick={() => toggleSelfHosted(slug)}>
+                      <button
+                        key={slug}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleSelfHosted(slug)}
+                      >
                         <Badge
                           variant={on ? 'success' : 'default'}
                           className={cn(!on && 'hover:text-foreground')}

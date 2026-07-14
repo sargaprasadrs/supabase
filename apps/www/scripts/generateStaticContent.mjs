@@ -379,14 +379,17 @@ try {
 }
 
 // Changelog RSS + changelog.md → sourced from supabase/changelog entries/*.md (private repo).
-// Optional: warns and skips rather than failing the build when the GitHub App secret isn't
-// configured (e.g. local dev without the secret, or before it's added in Vercel).
+// Missing secret: warns and skips locally, but fails CI/deployment builds so they can't
+// publish stale generated changelog files.
 async function generateChangelogContent() {
   const appId = process.env.CHANGELOG_SYNC_APP_ID
   const installationId = process.env.CHANGELOG_SYNC_APP_INSTALLATION_ID
   const privateKey = process.env.CHANGELOG_SYNC_APP_PRIVATE_KEY
 
   if (!appId || !installationId || !privateKey) {
+    if (process.env.CI || process.env.VERCEL) {
+      throw new Error('CHANGELOG_SYNC_APP_* env vars not set — cannot generate changelog content')
+    }
     console.warn('⚠️  CHANGELOG_SYNC_APP_* env vars not set — skipping changelog RSS/md generation')
     return
   }

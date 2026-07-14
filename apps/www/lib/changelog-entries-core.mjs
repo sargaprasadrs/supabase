@@ -6,12 +6,11 @@
  * Plain .mjs (no TypeScript syntax) so both a TS Next.js module and a plain
  * `node` build script can import it directly.
  */
-import matter from 'gray-matter'
 import { Readable } from 'stream'
-import * as tarStream from 'tar-stream'
 import zlib from 'zlib'
+import matter from 'gray-matter'
+import * as tarStream from 'tar-stream'
 
-/** Display labels for `change_type`, shared with lib/changelog.utils.ts's CHANGE_TYPE_DISPLAY (which adds badge variants on top). */
 export const CHANGE_TYPE_LABELS = {
   'breaking-change': 'Breaking Change',
   deprecation: 'Deprecation',
@@ -32,7 +31,10 @@ export const CHANGE_TYPE_LABELS = {
  * @param {{ owner: string, repo: string, entriesPath?: string }} options
  * @returns {Promise<{ filename: string, content: string }[]>}
  */
-export async function fetchChangelogEntryFilesFromTarball(octokit, { owner, repo, entriesPath = 'entries' }) {
+export async function fetchChangelogEntryFilesFromTarball(
+  octokit,
+  { owner, repo, entriesPath = 'entries' }
+) {
   const tarballRes = await octokit.request('GET /repos/{owner}/{repo}/tarball/{ref}', {
     owner,
     repo,
@@ -75,19 +77,16 @@ export function stripInternalBlock(body) {
 
 /**
  * Extracts the content under a `## <heading>` line.
- * By default stops at the next `##` line of any kind — fine for `Summary`
- * and `Migration steps`, which are single, unnested sections. `Body` needs
- * `stopAtHeadings` since it commonly contains its own nested `##` sub-headings
- * (e.g. "## Vastly improved usage summary") that are still part of Body, not
- * separate top-level sections — only an explicit `## Migration steps` (or the
- * end of the already internal-stripped content) should end it.
  * @param {string[]} [stopAtHeadings] - exact heading names that terminate this section; omit to stop at any `##` line
  */
 export function extractSection(markdown, heading, stopAtHeadings) {
   const stopClause = stopAtHeadings?.length
     ? stopAtHeadings.map((h) => `##\\s+${h}\\s*$`).join('|')
     : '##\\s+.*$'
-  const regex = new RegExp(`^##\\s+${heading}\\s*\\n([\\s\\S]*?)(?=^(?:${stopClause})|(?![\\s\\S]))`, 'im')
+  const regex = new RegExp(
+    `^##\\s+${heading}\\s*\\n([\\s\\S]*?)(?=^(?:${stopClause})|(?![\\s\\S]))`,
+    'im'
+  )
   const match = markdown.match(regex)
   return match ? match[1].trim() : ''
 }
@@ -97,7 +96,11 @@ function resolveDateFromFilename(filename) {
   return m ? `${m[1]}-${m[2]}-${m[3]}` : null
 }
 
-/** `legacy_gh_discussion-suffix` for backfilled entries (preserves old supabase.com/changelog URLs), else the filename suffix. */
+/**
+ * `legacy_gh_discussion-suffix` for backfilled entries
+ * (preserves old supabase.com/changelog URLs)
+ * or the filename without timestamp and extension.
+ * */
 export function computeChangelogEntrySlug(filename, frontmatter) {
   const base = filename.replace(/\.md$/, '')
   const suffixMatch = base.match(/^\d{8}-(.+)$/)
