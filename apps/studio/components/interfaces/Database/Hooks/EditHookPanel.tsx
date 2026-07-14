@@ -1,13 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { PGTriggerCreate } from '@supabase/pg-meta/src/pg-meta-triggers'
-import type { PostgresTrigger } from '@supabase/postgres-meta'
+import { keyword } from '@supabase/pg-meta'
+import type { PGTrigger, PGTriggerCreate } from '@supabase/pg-meta'
 import { useQueryClient } from '@tanstack/react-query'
-import { useParams } from 'common'
+import { useFlag, useParams } from 'common'
 import { parseAsBoolean, parseAsString, useQueryState } from 'nuqs'
 import { useEffect, useRef, useState } from 'react'
 import { SubmitHandler, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { Button, Form_Shadcn_, SidePanel } from 'ui'
+import { Button, Form, SidePanel } from 'ui'
 
 import { FormSchema, WebhookFormValues } from './EditHookPanel.constants'
 import { FormContents } from './FormContents'
@@ -15,7 +15,10 @@ import { DiscardChangesConfirmationDialog } from '@/components/ui-patterns/Dialo
 import { useDatabaseTriggerCreateMutation } from '@/data/database-triggers/database-trigger-create-mutation'
 import { useDatabaseTriggerUpdateMutation } from '@/data/database-triggers/database-trigger-update-transaction-mutation'
 import { useDatabaseHooksQuery } from '@/data/database-triggers/database-triggers-query'
-import { tableEditorQueryOptions } from '@/data/table-editor/table-editor-query'
+import {
+  PG_META_SCOPED_INTROSPECTION_FLAG,
+  tableEditorQueryOptions,
+} from '@/data/table-editor/table-editor-query'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
 import { useConfirmOnClose } from '@/hooks/ui/useConfirmOnClose'
 import { uuidv4 } from '@/lib/helpers'
@@ -36,7 +39,7 @@ export const isEdgeFunction = ({
 
 const FORM_ID = 'edit-hook-panel-form'
 
-const parseHeaders = (selectedHook?: PostgresTrigger): HTTPArgument[] => {
+const parseHeaders = (selectedHook?: PGTrigger): HTTPArgument[] => {
   if (typeof selectedHook === 'undefined') {
     return [{ id: uuidv4(), name: 'Content-type', value: 'application/json' }]
   }
@@ -56,7 +59,7 @@ const parseHeaders = (selectedHook?: PostgresTrigger): HTTPArgument[] => {
   }))
 }
 
-const parseParameters = (selectedHook?: PostgresTrigger): HTTPArgument[] => {
+const parseParameters = (selectedHook?: PGTrigger): HTTPArgument[] => {
   if (typeof selectedHook === 'undefined') {
     return [{ id: uuidv4(), name: '', value: '' }]
   }
@@ -80,6 +83,7 @@ export const EditHookPanel = () => {
   const { ref } = useParams()
   const { data: project } = useSelectedProjectQuery()
   const [isLoadingTable, setIsLoadingTable] = useState(false)
+  const scoped = !!useFlag(PG_META_SCOPED_INTROSPECTION_FLAG)
 
   const { data: hooks = [], isSuccess } = useDatabaseHooksQuery({
     projectRef: project?.ref,
@@ -212,6 +216,7 @@ export const EditHookPanel = () => {
           id: Number(values.table_id),
           projectRef: project?.ref,
           connectionString: project?.connectionString,
+          scoped,
         })
       )
       if (!selectedTable) {
@@ -238,7 +243,7 @@ export const EditHookPanel = () => {
         )
 
       // replacer function with JSON.stringify to handle quotes properly
-      const stringifiedParameters = JSON.stringify(parameters, (key, value) => {
+      const stringifiedParameters = JSON.stringify(parameters, (_key, value) => {
         if (typeof value === 'string') {
           // Return the raw string without any additional escaping
           return value
@@ -275,7 +280,11 @@ export const EditHookPanel = () => {
           projectRef: project?.ref,
           connectionString: project?.connectionString,
           originalTrigger: selectedHook,
-          updatedTrigger: { ...payload, enabled_mode: 'ORIGIN' },
+          updatedTrigger: {
+            ...payload,
+            enabled_mode: 'ORIGIN',
+            events: payload.events.map(keyword),
+          },
         })
       }
     } catch (error) {
@@ -314,8 +323,8 @@ export const EditHookPanel = () => {
           <div className="flex w-full justify-end space-x-3 border-t border-default px-3 py-4">
             <Button
               size="tiny"
-              type="default"
-              htmlType="button"
+              variant="default"
+              type="button"
               onClick={confirmOnClose}
               disabled={isSubmitting}
             >
@@ -323,8 +332,8 @@ export const EditHookPanel = () => {
             </Button>
             <Button
               size="tiny"
-              type="primary"
-              htmlType="submit"
+              variant="primary"
+              type="submit"
               form={FORM_ID}
               disabled={isSubmitting}
               loading={isSubmitting}
@@ -334,11 +343,11 @@ export const EditHookPanel = () => {
           </div>
         }
       >
-        <Form_Shadcn_ {...form}>
+        <Form {...form}>
           <form id={FORM_ID} onSubmit={form.handleSubmit(onSubmit)}>
             <FormContents form={form} selectedHook={selectedHook} />
           </form>
-        </Form_Shadcn_>
+        </Form>
       </SidePanel>
       <DiscardChangesConfirmationDialog {...modalProps} />
     </>

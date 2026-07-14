@@ -1,6 +1,5 @@
 import { Clipboard, Ellipsis, Plus, Settings, X } from 'lucide-react'
 import { useState } from 'react'
-import { useAiAssistantStateSnapshot } from 'state/ai-assistant-state'
 import {
   AiIconAnimation,
   Button,
@@ -10,11 +9,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from 'ui'
-import { Admonition } from 'ui-patterns'
+import { Admonition } from 'ui-patterns/admonition'
 
 import { ButtonTooltip } from '../ButtonTooltip'
+import { ShortcutTooltip } from '../ShortcutTooltip'
 import { AIAssistantChatSelector } from './AIAssistantChatSelector'
 import { AIOptInModal } from './AIOptInModal'
+import { useAiAssistantStateSnapshot } from '@/state/ai-assistant-state'
+import { SHORTCUT_IDS } from '@/state/shortcuts/registry'
+import { useShortcut } from '@/state/shortcuts/useShortcut'
 
 interface AIAssistantHeaderProps {
   isChatLoading: boolean
@@ -37,12 +40,17 @@ export const AIAssistantHeader = ({
 }: AIAssistantHeaderProps) => {
   const snap = useAiAssistantStateSnapshot()
   const [isOptInModalOpen, setIsOptInModalOpen] = useState(false)
+
+  useShortcut(SHORTCUT_IDS.AI_ASSISTANT_OPEN_PERMISSIONS, () => setIsOptInModalOpen(true), {
+    enabled: !isChatLoading,
+  })
+
   return (
     <div className="z-30 sticky top-0">
-      <div className="border-b border-b-muted flex items-center bg gap-x-4 pl-4 pr-3 min-h-[var(--header-height)]">
+      <div className="border-b border-b-muted flex items-center bg-card gap-x-4 pl-4 pr-3 min-h-(--header-height)">
         <div className="text-sm flex-1 flex items-center">
-          <AiIconAnimation size={20} allowHoverEffect={false} />
-          <span className="text-border-stronger dark:text-border-strong ml-3">
+          <AiIconAnimation size={18} allowHoverEffect={false} />
+          <span className="text-border-stronger dark:text-border-strong ml-2">
             <svg
               viewBox="0 0 24 24"
               width="16"
@@ -61,36 +69,44 @@ export const AIAssistantHeader = ({
         </div>
         <div className="flex items-center gap-x-4">
           <div className="flex items-center">
-            <ButtonTooltip
-              type="text"
-              size="tiny"
-              icon={<Plus strokeWidth={1.5} />}
-              onClick={onNewChat}
-              className="h-7 w-7 p-0"
-              tooltip={{ content: { side: 'bottom', text: 'New chat' } }}
-            />
-            <ButtonTooltip
-              type="text"
-              size="tiny"
-              icon={<Settings strokeWidth={1.5} />}
-              onClick={() => setIsOptInModalOpen(true)}
-              className="h-7 w-7 p-0"
-              disabled={isChatLoading}
-              tooltip={{
-                content: { side: 'bottom', text: 'Permission settings' },
-              }}
-            />
+            <ShortcutTooltip
+              side="bottom"
+              label="New chat"
+              shortcutId={SHORTCUT_IDS.AI_ASSISTANT_NEW_CHAT}
+            >
+              <Button
+                variant="text"
+                aria-label="New chat"
+                size="tiny"
+                icon={<Plus strokeWidth={1.5} />}
+                onClick={onNewChat}
+                className="h-7 w-7 p-0"
+              />
+            </ShortcutTooltip>
+
+            <ShortcutTooltip side="bottom" shortcutId={SHORTCUT_IDS.AI_ASSISTANT_OPEN_PERMISSIONS}>
+              <Button
+                variant="text"
+                aria-label="Permission settings"
+                size="tiny"
+                icon={<Settings strokeWidth={1.5} />}
+                onClick={() => setIsOptInModalOpen(true)}
+                className="h-7 w-7 p-0"
+                disabled={isChatLoading}
+              />
+            </ShortcutTooltip>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <ButtonTooltip
-                  type="text"
+                  variant="text"
                   size="tiny"
                   icon={<Ellipsis strokeWidth={1.5} />}
                   className="h-7 w-7 p-0"
                   tooltip={{ content: { side: 'bottom', text: 'More options' } }}
                 />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuItem
                   className="gap-x-2"
                   onClick={() => copyToClipboard(snap.activeChatId ?? '')}
@@ -100,13 +116,20 @@ export const AIAssistantHeader = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <ButtonTooltip
-              type="text"
-              className="w-7 h-7"
-              onClick={onCloseAssistant}
-              icon={<X strokeWidth={1.5} />}
-              tooltip={{ content: { side: 'bottom', text: 'Close assistant' } }}
-            />
+
+            <ShortcutTooltip
+              side="bottom"
+              label="Close assistant"
+              shortcutId={SHORTCUT_IDS.AI_ASSISTANT_TOGGLE}
+            >
+              <Button
+                aria-label="Close Assistant"
+                variant="text"
+                className="w-7 h-7"
+                onClick={onCloseAssistant}
+                icon={<X strokeWidth={1.5} />}
+              />
+            </ShortcutTooltip>
           </div>
         </div>
       </div>
@@ -136,7 +159,11 @@ export const AIAssistantHeader = ({
           className="border-0 border-b rounded-none bg-background"
         >
           {!isHipaaProjectDisallowed && (
-            <Button type="default" className="w-fit mt-4" onClick={() => setIsOptInModalOpen(true)}>
+            <Button
+              variant="default"
+              className="w-fit mt-4"
+              onClick={() => setIsOptInModalOpen(true)}
+            >
               Permission settings
             </Button>
           )}

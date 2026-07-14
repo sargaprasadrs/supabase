@@ -13,7 +13,8 @@
   "license": "MIT",
   "devDependencies": {
     "openapi-typescript": "^7.4.3",
-    "prettier": "3.2.4",
+    "prettier": "*",
+    "@typescript/native": "catalog:",
     "typescript": "catalog:"
   }
 }

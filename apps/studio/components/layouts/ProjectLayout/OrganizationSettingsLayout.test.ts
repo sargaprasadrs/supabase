@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   generateOrganizationSettingsMenuItems,
   generateOrganizationSettingsSections,
-  getOrganizationSettingsDocumentTitle,
   normalizeOrganizationSettingsPath,
 } from './OrganizationSettingsLayout'
+import { SHORTCUT_IDS } from '@/state/shortcuts/registry'
 
 describe('generateOrganizationSettingsMenuItems', () => {
   it('includes webhooks entry for organization settings nav', () => {
@@ -89,6 +89,45 @@ describe('OrganizationSettingsLayout helpers', () => {
     ).toBe(true)
   })
 
+  it('attaches shortcutId to each settings link', () => {
+    const sections = generateOrganizationSettingsSections({
+      slug: 'my-org',
+      currentPath: '/org/my-org/general',
+      showSecuritySettings: true,
+      showSsoSettings: true,
+      showLegalDocuments: true,
+      showPlatformWebhooks: true,
+    })
+
+    const allLinks = sections.flatMap((s) => s.links)
+    const linkByKey = (key: string) => allLinks.find((l) => l.key === key)
+
+    expect(linkByKey('general')?.shortcutId).toBe(SHORTCUT_IDS.NAV_ORG_SETTINGS_GENERAL)
+    expect(linkByKey('security')?.shortcutId).toBe(SHORTCUT_IDS.NAV_ORG_SETTINGS_SECURITY)
+    expect(linkByKey('sso')?.shortcutId).toBe(SHORTCUT_IDS.NAV_ORG_SETTINGS_SSO)
+    expect(linkByKey('apps')?.shortcutId).toBe(SHORTCUT_IDS.NAV_ORG_SETTINGS_APPS)
+    expect(linkByKey('webhooks')?.shortcutId).toBe(SHORTCUT_IDS.NAV_ORG_SETTINGS_WEBHOOKS)
+    expect(linkByKey('audit')?.shortcutId).toBe(SHORTCUT_IDS.NAV_ORG_SETTINGS_AUDIT)
+    expect(linkByKey('documents')?.shortcutId).toBe(SHORTCUT_IDS.NAV_ORG_SETTINGS_DOCUMENTS)
+  })
+
+  it('omits feature-flagged links (and their shortcutIds) when flags are off', () => {
+    const sections = generateOrganizationSettingsSections({
+      slug: 'my-org',
+      currentPath: '/org/my-org/general',
+      showSecuritySettings: false,
+      showSsoSettings: false,
+      showLegalDocuments: false,
+    })
+
+    const allLinks = sections.flatMap((s) => s.links)
+    const keys = allLinks.map((l) => l.key)
+
+    expect(keys).not.toContain('security')
+    expect(keys).not.toContain('sso')
+    expect(keys).not.toContain('documents')
+  })
+
   it('keeps webhooks nav item active for nested endpoint routes', () => {
     const sections = generateOrganizationSettingsSections({
       slug: 'my-org',
@@ -102,13 +141,5 @@ describe('OrganizationSettingsLayout helpers', () => {
       sections.flatMap((section) => section.links).find((item) => item.label === 'Webhooks')
         ?.isActive
     ).toBe(true)
-  })
-
-  it('uses settings as default document title when page title is not provided', () => {
-    expect(getOrganizationSettingsDocumentTitle(undefined, 'Supabase')).toBe('Settings | Supabase')
-  })
-
-  it('uses page title for document title when provided', () => {
-    expect(getOrganizationSettingsDocumentTitle('General', 'Supabase')).toBe('General | Supabase')
   })
 })

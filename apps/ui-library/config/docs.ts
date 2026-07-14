@@ -25,13 +25,14 @@ export const gettingStarted: SidebarNavGroup = {
 }
 
 export const aiEditorsRules: SidebarNavGroup = {
-  title: 'AI Editors Rules',
+  title: 'AI Skills',
   items: [
     {
-      title: 'Prompts',
-      href: '/docs/ai-editors-rules/prompts',
+      title: 'Skills',
+      href: '/docs/ai-editors-rules/skills',
       items: [],
-      commandItemLabel: 'AI Editors Rules',
+      new: true,
+      commandItemLabel: 'AI Skills',
     },
   ],
 }
@@ -89,6 +90,22 @@ export const componentPages: SidebarNavGroup = {
       commandItemLabel: 'Realtime Cursor',
     },
     {
+      title: 'Realtime Monaco',
+      supportedFrameworks: ['nextjs', 'react-router', 'tanstack', 'react'],
+      href: '/docs/nextjs/realtime-monaco',
+      items: [],
+      new: true,
+      commandItemLabel: 'Realtime Monaco',
+    },
+    {
+      title: 'Realtime Flow',
+      supportedFrameworks: ['nextjs', 'react-router', 'tanstack', 'react'],
+      href: '/docs/nextjs/realtime-flow',
+      items: [],
+      new: true,
+      commandItemLabel: 'Realtime Flow',
+    },
+    {
       title: 'Current User Avatar',
       supportedFrameworks: ['nextjs', 'react-router', 'tanstack', 'react', 'vue', 'nuxtjs'],
       href: '/docs/nextjs/current-user-avatar',
@@ -104,18 +121,18 @@ export const componentPages: SidebarNavGroup = {
     },
     {
       title: 'Realtime Chat',
-      supportedFrameworks: ['nextjs', 'react-router', 'tanstack', 'react'],
+      supportedFrameworks: ['nextjs', 'react-router', 'tanstack', 'react', 'vue', 'nuxtjs'],
       href: '/docs/nextjs/realtime-chat',
       items: [],
       commandItemLabel: 'Realtime Chat',
     },
     {
-      title: 'Infinite Query Hook',
-      supportedFrameworks: [],
-      href: '/docs/infinite-query-hook',
+      title: 'Infinite Query',
+      supportedFrameworks: ['react', 'vue'],
+      href: '/docs/react/infinite-query',
       new: true,
       items: [],
-      commandItemLabel: 'Infinite Query Hook',
+      commandItemLabel: 'Infinite Query',
     },
   ],
 }

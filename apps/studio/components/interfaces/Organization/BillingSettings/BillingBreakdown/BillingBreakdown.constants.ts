@@ -1,5 +1,5 @@
-import { PricingMetric } from 'data/analytics/org-daily-stats-query'
-import { DOCS_URL } from 'lib/constants'
+import { PricingMetric } from '@/data/analytics/org-daily-stats-query'
+import { DOCS_URL } from '@/lib/constants'
 
 export const USAGE_APPROACHING_THRESHOLD = 0.8
 
@@ -177,5 +177,21 @@ export const BILLING_BREAKDOWN_METRICS: Metric[] = [
     units: 'absolute',
     category: 'compute',
     anchor: 'active-compute',
+  },
+  {
+    key: PricingMetric.ETL_COPY_BACKFILL_DATA,
+    name: 'Pipeline Backfill Data',
+    units: 'bytes',
+    unitName: 'GB',
+    category: 'Pipelines',
+    anchor: 'pipeline-backfill-data',
+  },
+  {
+    key: PricingMetric.ETL_REPLICATED_DATA,
+    name: 'Pipeline Replicated Data',
+    units: 'bytes',
+    unitName: 'GB',
+    category: 'Pipelines',
+    anchor: 'pipeline-replicated-data',
   },
 ]

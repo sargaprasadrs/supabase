@@ -1,14 +1,5 @@
 import { SupportCategories } from '@supabase/shared-types/out/constants'
 import { useFlag, useParams } from 'common'
-import { SupportLink } from 'components/interfaces/Support/SupportLink'
-import { InlineLinkClassName } from 'components/ui/InlineLink'
-import { UpgradeToPro } from 'components/ui/UpgradeToPro'
-import {
-  useCustomDomainsQuery,
-  type CustomDomainsData,
-} from 'data/custom-domains/custom-domains-query'
-import { useProjectAddonsQuery } from 'data/subscriptions/project-addons-query'
-import { useSelectedOrganizationQuery } from 'hooks/misc/useSelectedOrganization'
 import { AlertCircle } from 'lucide-react'
 import { Card, CardContent } from 'ui'
 import {
@@ -25,10 +16,23 @@ import { CustomDomainDelete } from './CustomDomainDelete'
 import { CustomDomainsConfigureHostname } from './CustomDomainsConfigureHostname'
 import { CustomDomainsShimmerLoader } from './CustomDomainsShimmerLoader'
 import { CustomDomainVerify } from './CustomDomainVerify'
+import { SupportLink } from '@/components/interfaces/Support/SupportLink'
+import { InlineLinkClassName } from '@/components/ui/InlineLink'
+import { UpgradeToPro } from '@/components/ui/UpgradeToPro'
+import {
+  useCustomDomainsQuery,
+  type CustomDomainsData,
+} from '@/data/custom-domains/custom-domains-query'
+import { useProjectAddonsQuery } from '@/data/subscriptions/project-addons-query'
+import { useSelectedOrganizationQuery } from '@/hooks/misc/useSelectedOrganization'
+import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
 
 export const CustomDomainConfig = () => {
   const { ref } = useParams()
+  const { data: project } = useSelectedProjectQuery()
   const { data: organization } = useSelectedOrganizationQuery()
+  const isBranch = Boolean(project?.parent_project_ref)
+  const entityLabel = isBranch ? 'branch' : 'project'
 
   const customDomainsDisabledDueToQuota = useFlag('customDomainsDisabledDueToQuota')
 
@@ -89,7 +93,7 @@ export const CustomDomainConfig = () => {
                 ? 'We are working with our upstream DNS provider before we are able to sign up new custom domains. Please check back in a few hours.'
                 : plan === 'free'
                   ? 'Paid Plans come with free vanity subdomains or Custom Domains for an additional $10/month per domain.'
-                  : 'To configure a custom domain for your project, please enable the add-on. Each Custom Domain costs $10 per month.'
+                  : `To configure a custom domain for your ${entityLabel}, please enable the add-on. Each Custom Domain costs $10 per month.`
             }
             addon="customDomain"
             source="customDomain"

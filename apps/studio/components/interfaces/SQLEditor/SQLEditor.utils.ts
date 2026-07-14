@@ -1,6 +1,11 @@
-import { generateUuid } from 'lib/api/snippets.browser'
-import { removeCommentsFromSql } from 'lib/helpers'
-import type { SnippetWithContent } from 'state/sql-editor-v2'
+import {
+  safeSql,
+  untrustedSql,
+  type SafeSqlFragment,
+  type UntrustedSqlFragment,
+} from '@supabase/pg-meta'
+import { wrapWithRollback } from '@supabase/pg-meta/src/query'
+import { TABLE_EVENT_ACTIONS } from 'common/telemetry-constants'
 
 import {
   alterDatabasePreventConnectionStatements,
@@ -9,7 +14,47 @@ import {
   sqlAiDisclaimerComment,
   updateWithoutWhereRegex,
 } from './SQLEditor.constants'
-import { ContentDiff } from './SQLEditor.types'
+import { ContentDiff, type IStandaloneCodeEditor } from './SQLEditor.types'
+import { isExplainSql } from '@/components/interfaces/ExplainVisualizer/ExplainVisualizer.utils'
+import type { SnippetWithContent } from '@/data/content/sql-folders-query'
+import type { DatabaseEventTrigger } from '@/data/database-event-triggers/database-event-triggers-query'
+import { generateUuid } from '@/lib/api/snippets.browser'
+import { removeCommentsFromSql } from '@/lib/helpers'
+import { wrapWithRoleImpersonation } from '@/lib/role-impersonation'
+import { sqlEventParser } from '@/lib/sql-event-parser'
+import type { RoleImpersonationState } from '@/state/role-impersonation-state'
+
+export type CreateTableWithoutRLS = {
+  schema?: string
+  tableName: string
+}
+
+// The ensure_rls event trigger only auto-enables RLS on tables in the public
+// schema (see AUTO_ENABLE_RLS_EVENT_TRIGGER_SQL).
+const ENSURE_RLS_TRIGGER_SCHEMAS = new Set(['public'])
+
+export function hasActiveEnsureRLSTrigger(triggers: DatabaseEventTrigger[] | undefined) {
+  return (
+    triggers?.some(
+      (t) =>
+        (t.name === 'ensure_rls' || t.function_name === 'rls_auto_enable') &&
+        t.enabled_mode !== 'DISABLED'
+    ) ?? false
+  )
+}
+
+/**
+ * Filters out CREATE TABLE entries that will be covered by the project's
+ * ensure_rls event trigger (which only handles tables in the public schema).
+ * Tables in any other schema are returned unchanged so the user is still warned.
+ */
+export function filterTablesCoveredByEnsureRLSTrigger(
+  tables: CreateTableWithoutRLS[],
+  hasTrigger: boolean
+): CreateTableWithoutRLS[] {
+  if (!hasTrigger) return tables
+  return tables.filter((t) => !ENSURE_RLS_TRIGGER_SCHEMAS.has((t.schema ?? 'public').toLowerCase()))
+}
 
 export const createSqlSnippetSkeletonV2 = ({
   name,
@@ -45,9 +90,9 @@ export const createSqlSnippetSkeletonV2 = ({
     content: {
       ...NEW_SQL_SNIPPET_SKELETON.content,
       content_id: id ?? '',
-      sql: sql ?? '',
+      unchecked_sql: untrustedSql(sql ?? ''),
     } as any,
-    isNotSavedInDatabaseYet: true,
+    status: 'new',
   }
 }
 
@@ -56,14 +101,79 @@ export function checkDestructiveQuery(sql: string) {
   return destructiveSqlRegex.some((regex) => regex.test(cleanedSql))
 }
 
+// Replace the contents of single-quoted string literals and double-quoted
+// identifiers with empty quotes, so a downstream `where` scan can't be fooled
+// by tokens like `UPDATE "where table" SET ...` or `SET name = 'where x'`.
+// Postgres uses doubled quotes to escape, so `''` and `""` are matched as
+// part of the same span rather than terminating it.
+const stripQuotedSpans = (sql: string) =>
+  sql.replace(/'(?:''|[^'])*'/g, "''").replace(/"(?:""|[^"])*"/g, '""')
+
 // Function to check for UPDATE queries without WHERE clause
 export function isUpdateWithoutWhere(sql: string): boolean {
   const updateStatements = sql
     .split(';')
     .filter((statement) => statement.trim().toLowerCase().startsWith('update'))
   return updateStatements.some(
-    (statement) => updateWithoutWhereRegex.test(statement) && !/where\s/i.test(statement)
+    (statement) =>
+      updateWithoutWhereRegex.test(statement) && !/where\s/i.test(stripQuotedSpans(statement))
   )
+}
+
+/**
+ * Returns CREATE TABLE statements in `sql` that do not have a matching
+ * ALTER TABLE ... ENABLE ROW LEVEL SECURITY in the same SQL submission.
+ *
+ * Operates on the SQL passed in (which is the user's selection if any, or the
+ * full editor contents otherwise) so partial-execution selects work naturally.
+ */
+export function getCreateTablesMissingRLS(sql: string): CreateTableWithoutRLS[] {
+  const events = sqlEventParser.getTableEvents(sql)
+
+  // Match case-sensitively. Lowercasing would let quoted identifiers like
+  // "MyTable" and "mytable" — which are different tables in Postgres — collide
+  // and silently suppress the warning. The trade-off is rare false positives
+  // when users mix case for *unquoted* identifiers (Postgres would have folded
+  // them anyway), which is annoying but safe.
+  const key = (e: { schema?: string; tableName?: string }) => `${e.schema ?? ''}.${e.tableName}`
+
+  const rlsEnabled = new Set(
+    events.filter((e) => e.type === TABLE_EVENT_ACTIONS.TableRLSEnabled && e.tableName).map(key)
+  )
+
+  return events
+    .filter((e) => e.type === TABLE_EVENT_ACTIONS.TableCreated && e.tableName)
+    .filter((e) => !rlsEnabled.has(key(e)))
+    .map((e) => ({ schema: e.schema, tableName: e.tableName as string }))
+}
+
+/**
+ * Appends `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` statements to `sql`
+ * for each provided table.
+ */
+export function appendEnableRLSStatements(sql: string, tables: CreateTableWithoutRLS[]) {
+  if (tables.length === 0) return sql
+
+  // Postgres folds unquoted identifiers to lowercase, so any identifier that
+  // isn't strictly lowercase-safe (e.g. "MyTable", "user table") must be quoted
+  // to refer back to the original table.
+  const quote = (identifier: string) =>
+    /^[a-z_][a-z0-9_]*$/.test(identifier) ? identifier : `"${identifier.replace(/"/g, '""')}"`
+
+  const additions = tables
+    .map(({ schema, tableName }) => {
+      const target = schema ? `${quote(schema)}.${quote(tableName)}` : quote(tableName)
+      return `ALTER TABLE ${target} ENABLE ROW LEVEL SECURITY;`
+    })
+    .join('\n')
+
+  const trimmed = sql.replace(/\s+$/, '')
+  // If the SQL ends with a line comment, the appended ';' would be swallowed,
+  // so put the terminator on its own line.
+  const endsWithLineComment = /--[^\r\n]*$/.test(trimmed)
+  const separator = trimmed.endsWith(';') ? '\n\n' : endsWithLineComment ? '\n;\n\n' : ';\n\n'
+
+  return `${trimmed}${separator}-- Added by Supabase: enable Row Level Security on newly created tables\n${additions}\n`
 }
 
 export function checkAlterDatabaseConnection(sql: string): boolean {
@@ -148,17 +258,91 @@ export const checkIfAppendLimitRequired = (sql: string, limit: number = 0) => {
     !cleanedSql.toLowerCase().match(/fetch\s+first/i) &&
     !cleanedSql.match(/limit$/i) &&
     !cleanedSql.match(/limit;$/i) &&
-    !cleanedSql.match(/limit [0-9]* offset [0-9]*[;]?$/i) &&
-    !cleanedSql.match(/limit [0-9]*[;]?$/i)
+    !cleanedSql.match(/limit [0-9]* offset [0-9]*\s*[;]?$/i) &&
+    !cleanedSql.match(/limit [0-9]*\s*[;]?$/i)
   return { cleanedSql, appendAutoLimit }
 }
 
-export const suffixWithLimit = (sql: string, limit: number = 0) => {
+export const suffixWithLimit = (sql: SafeSqlFragment, limit: number = 0): SafeSqlFragment => {
   const { cleanedSql, appendAutoLimit } = checkIfAppendLimitRequired(sql, limit)
-  const formattedSql = appendAutoLimit
-    ? cleanedSql.endsWith(';')
-      ? sql.replace(/[;]+$/, ` limit ${limit};`)
-      : `${sql} limit ${limit};`
-    : sql
-  return formattedSql
+  if (!appendAutoLimit) return sql
+  return (
+    cleanedSql.endsWith(';') ? sql.replace(/[;]+$/, ` limit ${limit};`) : `${sql} limit ${limit};`
+  ) as SafeSqlFragment
+}
+
+/**
+ * Resolves the SQL to act on from the editor: the current selection if there is
+ * one, otherwise the full editor contents, falling back to the snippet's stored
+ * SQL. Mirrors the logic that used to be duplicated inline across the run,
+ * prettify and explain flows.
+ *
+ * Returns an `UntrustedSqlFragment`: editor contents (and snippet
+ * `unchecked_sql`) can be influenced by third parties (e.g. URL-prefilled
+ * snippets), so the value must only be promoted to executable via
+ * `acceptUntrustedSql` inside an explicit run/explain user action.
+ */
+export function getEditorSql(
+  editor: IStandaloneCodeEditor,
+  snippetContent?: UntrustedSqlFragment
+): UntrustedSqlFragment {
+  const selection = editor.getSelection()
+  const selectedValue = selection ? editor.getModel()?.getValueInRange(selection) : undefined
+  return untrustedSql((selectedValue || editor.getValue()) ?? snippetContent)
+}
+
+/**
+ * Parses a Postgres `formattedError` (e.g. `... LINE 3: ...`) into the 1-based
+ * editor line to highlight, offset by the selection's start line. Returns `NaN`
+ * when the error carries no parseable `LINE` marker; callers guard on that.
+ */
+export function computeErrorHighlightLine(
+  error: { formattedError?: string },
+  startLineNumber: number
+): number {
+  const formattedError = error.formattedError ?? ''
+  const lineError = formattedError.slice(formattedError.indexOf('LINE'))
+  return startLineNumber + Number(lineError.slice(0, lineError.indexOf(':')).split(' ')[1])
+}
+
+/**
+ * Reassembles the original vs. modified SQL for an AI completion diff from the
+ * completion metadata (text before/after the cursor + selection) and the
+ * generated replacement text.
+ */
+export function assembleCompletionDiff(
+  meta: { textBeforeCursor?: string; textAfterCursor?: string; selection?: string },
+  text: string
+): ContentDiff {
+  const beforeSelection = meta.textBeforeCursor ?? ''
+  const afterSelection = meta.textAfterCursor ?? ''
+  const selection = meta.selection ?? ''
+  return {
+    original: beforeSelection + selection + afterSelection,
+    modified: beforeSelection + text + afterSelection,
+  }
+}
+
+/**
+ * Builds the SQL sent for an EXPLAIN run: wraps the query in `EXPLAIN ANALYZE`
+ * (unless it is already an EXPLAIN), applies role impersonation, and wraps the
+ * whole thing in a rollback transaction so EXPLAIN ANALYZE never mutates data.
+ *
+ * Takes an already-safe fragment — the untrusted→safe promotion happens at the
+ * caller's user-action boundary (see `acceptUntrustedSql`), not in here.
+ */
+export function buildExplainSql(
+  sql: SafeSqlFragment,
+  impersonatedRoleState?: RoleImpersonationState
+): SafeSqlFragment {
+  const explainSql = isExplainSql(sql) ? sql : safeSql`EXPLAIN ANALYZE ${sql}`
+  return wrapWithRollback(wrapWithRoleImpersonation(explainSql, impersonatedRoleState))
+}
+
+/**
+ * Builds the prompt text used to ask the assistant to debug a failing snippet.
+ */
+export function buildDebugPromptText(sql: string, errorMessage: string): string {
+  const prompt = `Help me to debug the attached sql snippet which gives the following error: \n\n${errorMessage}`
+  return `${prompt}\n\nSQL Query:\n\`\`\`sql\n${sql}\n\`\`\``
 }

@@ -10,34 +10,37 @@ import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@d
 import { PermissionAction } from '@supabase/shared-types/out/constants'
 import { keepPreviousData } from '@tanstack/react-query'
 import { useParams } from 'common'
-import { SnippetDropdown } from 'components/interfaces/ProjectHome/SnippetDropdown'
-import { ReportBlock } from 'components/interfaces/Reports/ReportBlock/ReportBlock'
-import { createSqlSnippetSkeletonV2 } from 'components/interfaces/SQLEditor/SQLEditor.utils'
-import type { ChartConfig } from 'components/interfaces/SQLEditor/UtilityPanel/ChartConfig'
-import { ButtonTooltip } from 'components/ui/ButtonTooltip'
-import { DEFAULT_CHART_CONFIG } from 'components/ui/QueryBlock/QueryBlock'
-import { AnalyticsInterval } from 'data/analytics/constants'
-import { useInvalidateAnalyticsQuery } from 'data/analytics/utils'
-import { useContentInfiniteQuery } from 'data/content/content-infinite-query'
-import { Content } from 'data/content/content-query'
-import {
-  UpsertContentPayload,
-  useContentUpsertMutation,
-} from 'data/content/content-upsert-mutation'
 import dayjs from 'dayjs'
-import { useAsyncCheckPermissions } from 'hooks/misc/useCheckPermissions'
-import { useSelectedProjectQuery } from 'hooks/misc/useSelectedProject'
-import { uuidv4 } from 'lib/helpers'
-import { useProfile } from 'lib/profile'
-import { useTrack } from 'lib/telemetry/track'
 import { Plus, RefreshCw } from 'lucide-react'
 import type { CSSProperties, DragEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { useDatabaseSelectorStateSnapshot } from 'state/database-selector'
-import type { Dashboards } from 'types'
 import { Button } from 'ui'
-import { Row } from 'ui-patterns'
+import { Row } from 'ui-patterns/Row'
+
+import { resolveSnippetSelection } from '@/components/interfaces/ProjectHome/CustomReportSection.utils'
+import { MakeReportSnippetPublicModal } from '@/components/interfaces/ProjectHome/MakeReportSnippetPublicModal'
+import { SnippetDropdown } from '@/components/interfaces/ProjectHome/SnippetDropdown'
+import { ReportBlock } from '@/components/interfaces/Reports/ReportBlock/ReportBlock'
+import { createSqlSnippetSkeletonV2 } from '@/components/interfaces/SQLEditor/SQLEditor.utils'
+import type { ChartConfig } from '@/components/interfaces/SQLEditor/UtilityPanel/ChartConfig'
+import { ButtonTooltip } from '@/components/ui/ButtonTooltip'
+import { DEFAULT_CHART_CONFIG } from '@/components/ui/QueryBlock/QueryBlock'
+import { AnalyticsInterval } from '@/data/analytics/constants'
+import { useInvalidateAnalyticsQuery } from '@/data/analytics/utils'
+import { useContentInfiniteQuery } from '@/data/content/content-infinite-query'
+import { Content } from '@/data/content/content-query'
+import {
+  UpsertContentPayload,
+  useContentUpsertMutation,
+} from '@/data/content/content-upsert-mutation'
+import { useAsyncCheckPermissions } from '@/hooks/misc/useCheckPermissions'
+import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
+import { uuidv4 } from '@/lib/helpers'
+import { useProfile } from '@/lib/profile'
+import { useTrack } from '@/lib/telemetry/track'
+import { useDatabaseSelectorStateSnapshot } from '@/state/database-selector'
+import type { Dashboards } from '@/types'
 
 export function CustomReportSection() {
   const startDate = dayjs().subtract(7, 'day').toISOString()
@@ -51,6 +54,9 @@ export function CustomReportSection() {
   const { data: project } = useSelectedProjectQuery()
 
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+  const [snippetToMakePublic, setSnippetToMakePublic] = useState<
+    { id: string; name: string } | undefined
+  >(undefined)
 
   const { data: reportsData } = useContentInfiniteQuery(
     { projectRef: ref, type: 'report', name: 'Home', limit: 1 },
@@ -160,14 +166,17 @@ export function CustomReportSection() {
     []
   )
 
+  const isSnippetInReport = useCallback(
+    (id: string) =>
+      !!editableReport?.layout?.some(
+        (x) => String(x.id) === String(id) || String(x.attribute) === `snippet_${id}`
+      ),
+    [editableReport]
+  )
+
   const addSnippetToReport = useCallback(
     (snippet: { id: string; name: string }) => {
-      if (
-        editableReport?.layout?.some(
-          (x) =>
-            String(x.id) === String(snippet.id) || String(x.attribute) === `snippet_${snippet.id}`
-        )
-      ) {
+      if (isSnippetInReport(snippet.id)) {
         toast('This block is already in your report')
         return
       }
@@ -225,7 +234,25 @@ export function CustomReportSection() {
       findNextPlacement,
       createSnippetChartBlock,
       persistReport,
+      isSnippetInReport,
     ]
+  )
+
+  const handleSelectSnippet = useCallback(
+    (snippet: { id: string; name: string; visibility: Content['visibility'] }) => {
+      const action = resolveSnippetSelection(snippet, isSnippetInReport(snippet.id))
+      switch (action) {
+        case 'already-added':
+          toast('This block is already in your report')
+          return
+        case 'confirm-share':
+          setSnippetToMakePublic({ id: snippet.id, name: snippet.name })
+          return
+        case 'add':
+          addSnippetToReport(snippet)
+      }
+    },
+    [isSnippetInReport, addSnippetToReport]
   )
 
   const handleRemoveChart = ({ metric }: { metric: { key: string } }) => {
@@ -279,12 +306,15 @@ export function CustomReportSection() {
 
       const toastId = toast.loading(`Creating new query: ${label}`)
 
-      const payload = createSqlSnippetSkeletonV2({
-        name: label,
-        sql,
-        owner_id: profile.id,
-        project_id: project.id,
-      }) as UpsertContentPayload
+      const payload = {
+        ...createSqlSnippetSkeletonV2({
+          name: label,
+          sql,
+          owner_id: profile.id,
+          project_id: project.id,
+        }),
+        visibility: 'project',
+      } as UpsertContentPayload
 
       upsertContent({ projectRef: ref, payload })
 
@@ -337,7 +367,7 @@ export function CustomReportSection() {
         <div className="flex items-center gap-x-2">
           {layout.length > 0 && (
             <ButtonTooltip
-              type="default"
+              variant="default"
               icon={<RefreshCw className={isRefreshing ? 'animate-spin' : ''} />}
               className="w-7"
               disabled={isRefreshing}
@@ -348,9 +378,9 @@ export function CustomReportSection() {
           {canUpdateReport || canCreateReport ? (
             <SnippetDropdown
               projectRef={ref}
-              onSelect={addSnippetToReport}
+              onSelect={handleSelectSnippet}
               trigger={
-                <Button type="default" icon={<Plus />}>
+                <Button variant="default" icon={<Plus />}>
                   Add block
                 </Button>
               }
@@ -363,11 +393,11 @@ export function CustomReportSection() {
       </div>
       <div className="relative">
         {isDraggingOver && (
-          <div className="absolute inset-0 rounded bg-brand/10 pointer-events-none z-10" />
+          <div className="absolute inset-0 rounded-sm bg-brand/10 pointer-events-none z-10" />
         )}
         {layout.length === 0 ? (
           <div
-            className="h-64 flex flex-col items-center justify-center rounded border-2 border-dashed p-16 transition-colors"
+            className="h-64 flex flex-col items-center justify-center rounded-sm border-2 border-dashed p-16 transition-colors"
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -379,9 +409,9 @@ export function CustomReportSection() {
             {canUpdateReport || canCreateReport ? (
               <SnippetDropdown
                 projectRef={ref}
-                onSelect={addSnippetToReport}
+                onSelect={handleSelectSnippet}
                 trigger={
-                  <Button type="default" iconRight={<Plus size={14} />}>
+                  <Button variant="default" iconRight={<Plus size={14} />}>
                     Add your first block
                   </Button>
                 }
@@ -405,7 +435,8 @@ export function CustomReportSection() {
               strategy={rectSortingStrategy}
             >
               <Row
-                columns={[3, 2, 1]}
+                maxColumns={4}
+                minWidth={280}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -435,6 +466,16 @@ export function CustomReportSection() {
           </DndContext>
         )}
       </div>
+
+      <MakeReportSnippetPublicModal
+        projectRef={ref}
+        snippet={snippetToMakePublic}
+        onCancel={() => setSnippetToMakePublic(undefined)}
+        onConfirm={(snippet) => {
+          setSnippetToMakePublic(undefined)
+          addSnippetToReport(snippet)
+        }}
+      />
     </div>
   )
 }

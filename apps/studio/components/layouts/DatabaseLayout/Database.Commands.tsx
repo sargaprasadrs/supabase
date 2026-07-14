@@ -1,12 +1,12 @@
-import { Blocks, Code, Database, History, Search } from 'lucide-react'
-
 import { useParams } from 'common'
-import { COMMAND_MENU_SECTIONS } from 'components/interfaces/App/CommandMenu/CommandMenu.utils'
-import { orderCommandSectionsByPriority } from 'components/interfaces/App/CommandMenu/ordering'
-import { useIsFeatureEnabled } from 'hooks/misc/useIsFeatureEnabled'
+import { Blocks, Code, Database, History, Search } from 'lucide-react'
 import type { CommandOptions } from 'ui-patterns/CommandMenu'
 import { useRegisterCommands } from 'ui-patterns/CommandMenu'
 import { IRouteCommand } from 'ui-patterns/CommandMenu/internal/types'
+
+import { COMMAND_MENU_SECTIONS } from '@/components/interfaces/App/CommandMenu/CommandMenu.utils'
+import { orderCommandSectionsByPriority } from '@/components/interfaces/App/CommandMenu/ordering'
+import { useIsFeatureEnabled } from '@/hooks/misc/useIsFeatureEnabled'
 
 export function useDatabaseGotoCommands(options?: CommandOptions) {
   let { ref } = useParams()
@@ -58,6 +58,13 @@ export function useDatabaseGotoCommands(options?: CommandOptions) {
         name: 'Functions',
         value: 'Database: Functions',
         route: `/project/${ref}/database/functions`,
+        defaultHidden: true,
+      },
+      {
+        id: 'nav-database-policies',
+        name: 'Policies',
+        value: 'Database: Policies (RLS)',
+        route: `/project/${ref}/database/policies`,
         defaultHidden: true,
       },
       {
@@ -155,6 +162,12 @@ export function useDatabaseGotoCommands(options?: CommandOptions) {
         id: 'run-view-database-indexes',
         name: 'View and create indexes',
         route: `/project/${ref}/database/indexes`,
+        icon: () => <Database />,
+      },
+      {
+        id: 'run-view-database-policies',
+        name: 'View and create RLS policies',
+        route: `/project/${ref}/database/policies`,
         icon: () => <Database />,
       },
       ...(databaseRoles

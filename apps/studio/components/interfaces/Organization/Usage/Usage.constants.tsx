@@ -1,9 +1,11 @@
-import { USAGE_APPROACHING_THRESHOLD } from 'components/interfaces/Billing/Billing.constants'
-import { EgressType, PricingMetric } from 'data/analytics/org-daily-stats-query'
-import type { OrgSubscription } from 'data/subscriptions/types'
-import type { OrgUsageResponse } from 'data/usage/org-usage-query'
-import { DOCS_URL } from 'lib/constants'
-import { Admonition } from 'ui-patterns'
+import { ReactNode } from 'react'
+import { Admonition } from 'ui-patterns/admonition'
+
+import { USAGE_APPROACHING_THRESHOLD } from '@/components/interfaces/Billing/Billing.constants'
+import { EgressType, PricingMetric } from '@/data/analytics/org-daily-stats-query'
+import type { OrgSubscription } from '@/data/subscriptions/types'
+import type { OrgUsageResponse } from '@/data/usage/org-usage-query'
+import { DOCS_URL } from '@/lib/constants'
 
 export const COLOR_MAP = {
   white: { bar: 'fill-foreground', marker: 'bg-foreground' },
@@ -59,10 +61,10 @@ export interface CategoryAttribute {
   chartPrefix?: 'Max' | 'Average' | 'Cumulative'
   chartSuffix?: string
   chartDescription: string
-  additionalInfo?: (usage?: OrgUsageResponse) => JSX.Element | null
+  additionalInfo?: (usage?: OrgUsageResponse) => ReactNode | null
 }
 
-export type CategoryMetaKey = 'egress' | 'sizeCount' | 'activity' | 'compute' | 'logs'
+export type CategoryMetaKey = 'egress' | 'sizeCount' | 'activity' | 'compute' | 'logs' | 'pipelines'
 
 export interface CategoryMeta {
   key: CategoryMetaKey
@@ -396,6 +398,36 @@ export const USAGE_CATEGORIES: (subscription?: OrgSubscription) => CategoryMeta[
           unit: 'absolute',
           description:
             'Total amount of logs stored on the platform. Log retention depends on your platform agreement.\nBilling is based on the total amount of logs stored and factors in the retention period.',
+          chartDescription: 'The data refreshes every hour.',
+          links: [],
+        },
+      ],
+    },
+
+    {
+      key: 'pipelines',
+      name: 'Pipelines',
+      description: 'Usage statistics related to your pipelines',
+      attributes: [
+        {
+          anchor: 'pipeline-backfill-data',
+          key: PricingMetric.ETL_COPY_BACKFILL_DATA,
+          attributes: [{ key: PricingMetric.ETL_COPY_BACKFILL_DATA.toLowerCase(), color: 'white' }],
+          name: 'Pipeline Backfill Data',
+          unit: 'bytes',
+          description:
+            'Total amount of backfill/initial copy data processed across all projects.\nBilling is based on the total amount of backfill/initial copy data processed in Gigabyte.',
+          chartDescription: 'The data refreshes every hour.',
+          links: [],
+        },
+        {
+          anchor: 'pipeline-replicated-data',
+          key: PricingMetric.ETL_REPLICATED_DATA,
+          attributes: [{ key: PricingMetric.ETL_REPLICATED_DATA.toLowerCase(), color: 'white' }],
+          name: 'Pipeline Replicated Data',
+          unit: 'bytes',
+          description:
+            'Total amount of replicated data processed across all projects.\nBilling is based on the total amount of replicated data processed in Gigabyte.',
           chartDescription: 'The data refreshes every hour.',
           links: [],
         },
