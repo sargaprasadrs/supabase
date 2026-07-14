@@ -131,9 +131,12 @@ export const DestinationForm = ({
     pipelineId: existingDestination?.pipelineId,
   })
 
+  // Revealed API keys are only ever consumed as the default catalog token for
+  // Analytics Bucket (Iceberg) destinations, so don't fetch them for other
+  // destination types.
   const { data: apiKeysData } = useAPIKeys(
     { projectRef, reveal: true },
-    { enabled: canReadAPIKeys }
+    { enabled: canReadAPIKeys && selectedType === 'Analytics Bucket' }
   )
   const { serviceKey } = apiKeysData ?? {}
   const catalogToken = serviceKey?.api_key ?? ''

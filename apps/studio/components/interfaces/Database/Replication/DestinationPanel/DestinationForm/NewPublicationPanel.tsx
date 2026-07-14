@@ -34,7 +34,11 @@ export const NewPublicationPanel = ({ visible, sourceId, onClose }: NewPublicati
   const { ref: projectRef } = useParams()
   const { data: project } = useSelectedProjectQuery()
 
-  const { data: tables } = useReplicationTablesQuery({ projectRef, sourceId })
+  // This panel is always mounted alongside the destination form, so gate the
+  // fetch on `visible` rather than the panel's mount — otherwise every
+  // destination edit/create would fetch the full source catalog even when
+  // the user never opens "create a new publication".
+  const { data: tables } = useReplicationTablesQuery({ projectRef, sourceId }, { enabled: visible })
 
   const { mutate: createPublication, isPending: creatingPublication } =
     useCreatePublicationMutation({
