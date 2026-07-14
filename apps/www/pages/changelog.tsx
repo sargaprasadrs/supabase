@@ -60,32 +60,34 @@ type PageProps = {
 }
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async ({ res }) => {
-  try {
-    const entries = await getChangelogEntries()
-    const allIndex = entries.map(toChangelogTimelineIndexItem)
-    const firstEntries = entries.slice(0, FEATURED_COUNT)
-    const restIndex = allIndex.slice(FEATURED_COUNT)
+  const entries = await getChangelogEntries()
+  const allIndex = entries.map(toChangelogTimelineIndexItem)
+  const firstEntries = entries.slice(0, FEATURED_COUNT)
+  const restIndex = allIndex.slice(FEATURED_COUNT)
 
-    const featured = await Promise.all(
-      firstEntries.map(
-        async (entry): Promise<FeaturedEntry> => ({
-          slug: entry.slug,
-          title: entry.frontmatter.title,
-          created_at: entry.sortDate,
-          source: await mdxSerialize(entry.bodySection),
-          changeType: entry.frontmatter.change_type,
-          affectedProducts: entry.frontmatter.affected_products ?? [],
-        })
-      )
+  // Serialized independently so one entry's MDX failure doesn't drop the others.
+  const featuredResults = await Promise.allSettled(
+    firstEntries.map(
+      async (entry): Promise<FeaturedEntry> => ({
+        slug: entry.slug,
+        title: entry.frontmatter.title,
+        created_at: entry.sortDate,
+        source: await mdxSerialize(entry.bodySection),
+        changeType: entry.frontmatter.change_type,
+        affectedProducts: entry.frontmatter.affected_products ?? [],
+      })
     )
+  )
+  const featured = featuredResults.flatMap((result) => {
+    if (result.status === 'rejected') {
+      console.error(result.reason)
+      return []
+    }
+    return [result.value]
+  })
 
-    res.setHeader('Cache-Control', 'public, max-age=900, stale-while-revalidate=900')
-    return { props: { featured, restIndex, allIndex } }
-  } catch (e) {
-    console.error(e)
-    res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate')
-    return { props: { featured: [], restIndex: [], allIndex: [] } }
-  }
+  res.setHeader('Cache-Control', 'public, max-age=900, stale-while-revalidate=900')
+  return { props: { featured, restIndex, allIndex } }
 }
 
 export default function ChangelogPage(props: PageProps) {
@@ -223,7 +225,7 @@ function ChangelogIndex({ featured, restIndex, allIndex }: PageProps) {
     void setQuerySelfHosted(null)
   }
 
-  const isSingleQueryTag = queryTags?.length === 1
+  const singleSelectedTag = selectedTags.size === 1 ? [...selectedTags][0] : null
 
   const TITLE = 'Changelog'
   const DESCRIPTION = 'New updates and improvements to Supabase'
@@ -283,13 +285,13 @@ function ChangelogIndex({ featured, restIndex, allIndex }: PageProps) {
                 >
                   <Link
                     href={
-                      isSingleQueryTag
-                        ? `/changelog-rss/${queryTags?.[0]}.xml`
+                      singleSelectedTag
+                        ? `/changelog-rss/${singleSelectedTag}.xml`
                         : '/changelog-rss.xml'
                     }
                   >
-                    {isSingleQueryTag &&
-                      CHANGELOG_PRODUCT_TAGS.find((tag) => tag.slug === queryTags?.[0])?.label +
+                    {singleSelectedTag &&
+                      CHANGELOG_PRODUCT_TAGS.find((tag) => tag.slug === singleSelectedTag)?.label +
                         ' '}{' '}
                     RSS
                   </Link>

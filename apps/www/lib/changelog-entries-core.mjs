@@ -132,8 +132,21 @@ export function isPublished(entry) {
 }
 
 export function getPublishedChangelogEntries(files) {
-  return files
+  const entries = files
     .map(({ filename, content }) => parseChangelogEntryFile(filename, content))
     .filter(isPublished)
     .sort((a, b) => (a.sortDate < b.sortDate ? 1 : a.sortDate > b.sortDate ? -1 : 0))
+
+  const filenameBySlug = new Map()
+  for (const entry of entries) {
+    const clashingFilename = filenameBySlug.get(entry.slug)
+    if (clashingFilename) {
+      throw new Error(
+        `Duplicate changelog slug "${entry.slug}" from "${clashingFilename}" and "${entry.filename}"`
+      )
+    }
+    filenameBySlug.set(entry.slug, entry.filename)
+  }
+
+  return entries
 }

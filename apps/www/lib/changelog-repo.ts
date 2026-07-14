@@ -55,7 +55,7 @@ function createChangelogRepoOctokit() {
     auth: {
       appId: process.env.CHANGELOG_SYNC_APP_ID,
       installationId: process.env.CHANGELOG_SYNC_APP_INSTALLATION_ID,
-      privateKey: process.env.CHANGELOG_SYNC_APP_PRIVATE_KEY,
+      privateKey: process.env.CHANGELOG_SYNC_APP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     },
   })
 }
@@ -85,7 +85,12 @@ let cachedAt = 0
 export async function getChangelogEntries(): Promise<ChangelogEntry[]> {
   if (!cachedEntries || Date.now() - cachedAt > CACHE_TTL_MS) {
     cachedAt = Date.now()
-    cachedEntries = listChangelogEntries()
+    cachedEntries = listChangelogEntries().catch((error) => {
+      // Clear cache on failure so the next call retries instead of reusing the rejection.
+      cachedEntries = null
+      cachedAt = 0
+      throw error
+    })
   }
   return cachedEntries
 }

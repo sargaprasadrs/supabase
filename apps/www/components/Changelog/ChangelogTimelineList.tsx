@@ -8,10 +8,8 @@ import {
 import dayjs from 'dayjs'
 import { GitCommit } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { type MouseEvent } from 'react'
 import { Badge, cn } from 'ui'
-
-const DEFAULT_PAGE_SIZE = 40
 
 function groupChangelogIndexByYear(
   items: ChangelogTimelineIndexItem[]
@@ -128,37 +126,11 @@ function TimelineRow({ item, href }: { item: ChangelogTimelineIndexItem; href: s
 type Props = {
   items: ChangelogTimelineIndexItem[]
   omitOuterTimelineBorder?: boolean
-  pageSize?: number
 }
 
 export function ChangelogTimelineList(props: Props) {
-  const { items, omitOuterTimelineBorder, pageSize = DEFAULT_PAGE_SIZE } = props
-  const [visibleCount, setVisibleCount] = useState(() => Math.min(pageSize, items.length))
-  const sentinelRef = useRef<HTMLDivElement>(null)
-
-  // Reset the window whenever the underlying item set changes (e.g. a new search/filter).
-  useEffect(() => {
-    setVisibleCount(Math.min(pageSize, items.length))
-  }, [items, pageSize])
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel || visibleCount >= items.length) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setVisibleCount((prev) => Math.min(prev + pageSize, items.length))
-        }
-      },
-      { rootMargin: '600px 0px' }
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [items.length, pageSize, visibleCount])
-
-  const visibleItems = items.slice(0, visibleCount)
-  const yearGroups = groupChangelogIndexByYear(visibleItems)
+  const { items, omitOuterTimelineBorder } = props
+  const yearGroups = groupChangelogIndexByYear(items)
 
   return (
     <div
@@ -214,7 +186,6 @@ export function ChangelogTimelineList(props: Props) {
           </div>
         </section>
       ))}
-      {visibleCount < items.length && <div ref={sentinelRef} aria-hidden className="h-1" />}
     </div>
   )
 }

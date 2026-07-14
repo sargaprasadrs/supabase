@@ -428,7 +428,10 @@ async function generateChangelogContent() {
   const productTagsPath = path.join(__dirname, '../data/changelog-product-tags.json')
   const productTags = JSON.parse(await fs.readFile(productTagsPath, 'utf8'))
   const tagFeedsDir = path.join(__dirname, '../public/changelog-rss')
+  // Clear first so a renamed/removed product tag doesn't leave a stale feed file behind.
+  await fs.rm(tagFeedsDir, { recursive: true, force: true })
   await fs.mkdir(tagFeedsDir, { recursive: true })
+  const tagFilenames = productTags.map(({ label }) => `${labelToFileSlug(label)}.xml`)
   const tagResults = await Promise.allSettled(
     productTags.map(async ({ label }) => {
       const fileSlug = labelToFileSlug(label)
@@ -436,8 +439,19 @@ async function generateChangelogContent() {
       await fs.writeFile(path.join(tagFeedsDir, `${fileSlug}.xml`), tagXml.trim(), 'utf8')
     })
   )
-  const succeeded = tagResults.filter((r) => r.status === 'fulfilled').length
+  const failedTagFeeds = tagResults.flatMap((result, i) =>
+    result.status === 'rejected' ? [{ file: tagFilenames[i], reason: result.reason }] : []
+  )
+  const succeeded = tagResults.length - failedTagFeeds.length
   console.log(`✅ Generated ${succeeded}/${productTags.length} per-tag changelog RSS feeds`)
+  if (failedTagFeeds.length > 0) {
+    for (const { file, reason } of failedTagFeeds) {
+      console.error(`Failed to write changelog-rss/${file}:`, reason)
+    }
+    throw new Error(
+      `Failed to generate ${failedTagFeeds.length}/${productTags.length} per-tag changelog RSS feeds`
+    )
+  }
 
   // LLM-friendly changelog markdown index (RSS remains canonical syndication format).
   const mdSections = entries.map((entry) => {
@@ -461,6 +475,8 @@ async function generateChangelogContent() {
 
   // One markdown file per entry → /changelog/<slug>.md (Body section only — internal notes never included).
   const changelogEntryMdDir = path.join(__dirname, '../public/changelog')
+  // Clear first so a renamed/unpublished entry doesn't leave a stale file behind.
+  await fs.rm(changelogEntryMdDir, { recursive: true, force: true })
   await fs.mkdir(changelogEntryMdDir, { recursive: true })
   for (const entry of entries) {
     const published = dayjs(entry.sortDate).isValid()

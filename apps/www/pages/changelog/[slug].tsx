@@ -84,26 +84,21 @@ export const getStaticProps: GetStaticProps<PageProps> = async ({ params }) => {
   const raw = params?.slug
   const slug = Array.isArray(raw) ? raw[0] : (raw ?? '')
 
-  try {
-    const entries = await getChangelogEntries()
-    const entry = entries.find((e) => e.slug === slug)
-    if (!entry) return { notFound: true }
+  const entries = await getChangelogEntries()
+  const entry = entries.find((e) => e.slug === slug)
+  if (!entry) return { notFound: true }
 
-    const source = await mdxSerialize(entry.bodySection)
+  const source = await mdxSerialize(entry.bodySection)
 
-    return {
-      props: {
-        title: entry.frontmatter.title,
-        created_at: entry.sortDate,
-        slug: entry.slug,
-        frontmatter: entry.frontmatter,
-        source,
-      },
-      revalidate: 900,
-    }
-  } catch (e) {
-    console.error(e)
-    return { notFound: true }
+  return {
+    props: {
+      title: entry.frontmatter.title,
+      created_at: entry.sortDate,
+      slug: entry.slug,
+      frontmatter: entry.frontmatter,
+      source,
+    },
+    revalidate: 900,
   }
 }
 
