@@ -261,15 +261,60 @@ You can access the following logs from the **Sources** drop-down:
 
 ## Querying with the Logs Explorer
 
-The Logs Explorer uses BigQuery and supports all [available SQL functions and operators](https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-and-operators).
+The Logs Explorer supports two query engines, and the SQL you write depends on which one your project uses.
 
-<Admonition type="caution">
+Since June 2026, projects query logs on **ClickHouse**, which is now the default engine. On ClickHouse, every source shares a single `logs` table tagged by a `source` column, and nested fields live in a `log_attributes` map. **BigQuery** is the legacy engine: each source is its own table, and nested fields are read with `cross join unnest(metadata)`. BigQuery will eventually be deprecated in favor of ClickHouse.
 
-The Logs Explorer now defaults to ClickHouse, where every source shares a single `logs` table and nested fields are read from a `log_attributes` map rather than with `cross join unnest(metadata)`. The examples below still use the legacy BigQuery syntax and are being migrated. Adjust field access accordingly on projects already on ClickHouse.
+Use the section below that matches your project's engine.
 
-</Admonition>
+### ClickHouse query syntax (default)
 
-### Timestamp display and behavior
+Every log line from every source is a single row in the `logs` table, tagged by a `source` column. Structured fields live in a `log_attributes` map whose values are strings, and the raw line is in `event_message`.
+
+Read fields with bracket access, keeping the full dotted key, for example `log_attributes['request.path']` rather than `path`. Wrap numeric values in `toInt32OrZero(...)`, which returns `0` for a missing or non-numeric value. Use `count()` rather than `count(*)`.
+
+For example, to find failing API requests:
+
+```sql
+select timestamp,
+       toInt32OrZero(log_attributes['response.status_code']) as status,
+       log_attributes['request.path'] as path
+from logs
+where source = 'edge_logs'
+  and toInt32OrZero(log_attributes['response.status_code']) >= 400
+order by timestamp desc
+limit 100;
+```
+
+For example, to find a specific Postgres SQLSTATE (`42501` permission denied, `42P01` relation missing, `23505` duplicate key):
+
+```sql
+select timestamp, log_attributes['parsed.user_name'] as role, event_message
+from logs
+where source = 'postgres_logs'
+  and log_attributes['parsed.sql_state_code'] = '42501'
+order by timestamp desc
+limit 100;
+```
+
+Do not guess `log_attributes` keys. A missing key returns an empty string rather than an error, so a wrong key makes a working query look empty instead of failing. Discover the real keys for a source, or read `event_message`, which always holds the full line. Statement text and error detail live there, not in `parsed.query` or `parsed.detail`, which are usually empty:
+
+```sql
+select arrayJoin(mapKeys(log_attributes)) as key, count() as n
+from logs
+where source = 'postgres_logs'
+group by key
+order by n desc
+limit 100;
+```
+
+If you use the [Supabase MCP server](/docs/guides/getting-started/mcp), its `get_logs` tool returns a service's logs from the last 24 hours without writing SQL.
+
+### BigQuery query syntax (legacy)
+
+BigQuery is the original Logs Explorer engine. Projects created before the ClickHouse rollout may still query on BigQuery, and it will eventually be deprecated in favor of ClickHouse. The Logs Explorer supports all [available SQL functions and operators](https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-and-operators) on BigQuery.
+
+#### Timestamp display and behavior
 
 Each log entry is stored with a `timestamp` as a `TIMESTAMP` data type. Use the appropriate [timestamp function](https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp) to use the `timestamp` field in a query.
 
@@ -285,7 +330,7 @@ select datetime(timestamp) from ....
 -- 2022-09-27T09:17:10.439Z
 ```
 
-### Unnesting arrays
+#### Unnesting arrays
 
 Each log event stores metadata an array of objects with multiple levels, and can be seen by selecting single log events in the Logs Explorer. To query arrays, use `unnest()` on each array field and add it to the query as a join. This allows you to reference the nested objects with an alias and select their individual fields.
 
@@ -321,6 +366,22 @@ This allows you to select the `method` and `cf_ipcountry` columns. In JS dot not
 
 - `metadata[].request[].method`
 - `metadata[].request[].headers[].cf_ipcountry`
+
+#### Examples and templates
+
+The Logs Explorer includes **Templates** (available in the Templates tab or the dropdown in the Query tab) to help you get started.
+
+For example, you can enter the following query in the SQL Editor to retrieve each user's IP address:
+
+```sql
+select datetime(timestamp), h.x_real_ip
+from
+  edge_logs
+  cross join unnest(metadata) as m
+  cross join unnest(m.request) as r
+  cross join unnest(r.headers) as h
+where h.x_real_ip is not null and r.method = "GET";
+```
 
 ### LIMIT and result row limitations
 
@@ -367,25 +428,9 @@ Identify which service owns the problem from the error or status code first, the
 
 A misspelled or non-existent field name either errors or silently returns nothing, which leaves a working query look empty. Confirm field names in the [field reference](#logs-field-reference), or select `event_message` and inspect a sample row first.
 
-### Examples and templates
-
-The Logs Explorer includes **Templates** (available in the Templates tab or the dropdown in the Query tab) to help you get started.
-
-For example, you can enter the following query in the SQL Editor to retrieve each user's IP address:
-
-```sql
-select datetime(timestamp), h.x_real_ip
-from
-  edge_logs
-  cross join unnest(metadata) as m
-  cross join unnest(m.request) as r
-  cross join unnest(r.headers) as h
-where h.x_real_ip is not null and r.method = "GET";
-```
-
 ### Logs field reference
 
-Refer to the full field reference for each available source below. Do note that in order to access each nested key, you would need to perform the [necessary unnesting joins](#unnesting-arrays)
+Refer to the full field reference for each available source below. Do note that in order to access each nested key, you would need to perform the [necessary unnesting joins](#unnesting-arrays). The paths listed here are the BigQuery nested paths; on ClickHouse the same fields are keys in `log_attributes`, for example `log_attributes['request.method']`.
 
 <SharedData data="logConstants">
   {(logConstants) => (
