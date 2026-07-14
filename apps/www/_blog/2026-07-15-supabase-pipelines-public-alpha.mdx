@@ -14,7 +14,7 @@ date: '2026-07-15'
 toc_depth: 2
 ---
 
-Today we're moving **Supabase Pipelines** into public alpha. The biggest addition is schema change support: Pipelines can now detect supported schema changes in your source tables and apply them to the destination. This release also brings a faster initial copy and new destination request forms for ClickHouse, Snowflake, and DuckLake.
+Today we're moving **Supabase Pipelines** into public alpha. The biggest addition is schema change support: Pipelines can now detect supported schema changes in your source tables and apply them to the destination automatically. This release also brings a faster initial copy and new destination request forms for ClickHouse, Snowflake, and DuckLake.
 
 Supabase Pipelines replicates your Supabase Postgres data to external analytical systems in near real time. It is powered by [Supabase ETL](https://supabase.com/blog/introducing-supabase-etl), our open source change-data-capture pipeline written in Rust. Supabase ETL reads changes from Postgres through logical replication, copies existing table data, streams inserts, updates, deletes, and truncates, and writes them to your destination.
 
