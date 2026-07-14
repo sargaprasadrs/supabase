@@ -1,6 +1,6 @@
 ---
 title: 'Supabase Pipelines is now in Public Alpha'
-description: 'Supabase Pipelines is now in public alpha with schema change support, a faster initial copy, and new destination request forms for ClickHouse, Snowflake, and DuckLake.'
+description: 'Supabase Pipelines is now in public alpha with schema change support, a faster initial copy, and a new destination request form for ClickHouse, Snowflake, and DuckLake.'
 author: riccardo_busetti
 imgSocial: supabase-pipelines-public-alpha/og.png
 imgThumb: supabase-pipelines-public-alpha/thumb.png
@@ -14,7 +14,7 @@ date: '2026-07-15'
 toc_depth: 2
 ---
 
-Today we're moving **Supabase Pipelines** into public alpha. The biggest addition is schema change support: Pipelines can now detect supported schema changes in your source tables and apply them to the destination automatically. This release also brings a faster initial copy and new destination request forms for ClickHouse, Snowflake, and DuckLake.
+Today we're moving **Supabase Pipelines** into public alpha. The biggest addition is schema change support: Pipelines can now detect supported schema changes in your source tables and apply them to the destination automatically. This release also brings a faster initial copy and a new destination request form for ClickHouse, Snowflake, and DuckLake.
 
 Supabase Pipelines replicates your Supabase Postgres data to external analytical systems in near real time. It is powered by [Supabase ETL](https://supabase.com/blog/introducing-supabase-etl), our open source change-data-capture pipeline written in Rust. Supabase ETL reads changes from Postgres through logical replication, copies existing table data, streams inserts, updates, deletes, and truncates, and writes them to your destination.
 
@@ -93,13 +93,13 @@ When you replicate to BigQuery, Supabase Pipelines keeps a destination represent
 
 We want Supabase Pipelines to connect Supabase Postgres to the systems your team already uses.
 
-We're opening destination request forms for:
+We're opening a [destination request form](https://supabase.com/go/supabase-pipelines-new-destinations) for:
 
 - ClickHouse
 - Snowflake
 - DuckLake
 
-These forms help us prioritize the next destinations based on real use cases: scale, data volume, expected latency, destination setup, and how teams want to query replicated data.
+This form helps us prioritize the next destinations based on real use cases: scale, data volume, expected latency, destination setup, and how teams want to query replicated data.
 
 We're always looking to add more destinations. If there is another warehouse, lakehouse, database, or local analytics engine you want to see supported, let us know.
 
