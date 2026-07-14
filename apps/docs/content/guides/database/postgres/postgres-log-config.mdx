@@ -32,7 +32,6 @@ The table outlines **configurable** log settings. For more information about eac
 | [`log_duration`](#logduration)                                 | Query Activity      | `SQL`                 |  `false`  |
 | [`log_statement`](#logstatement)                               | Query Activity      | `SQL`                 |   `ddl`   |
 | [`log_min_error_statement`](#logminerrorstatement)             | Query Activity      | `SQL`                 |  `error`  |
-| [`log_min_error_statement`](#logminerrorstatement)             | Query Activity      | `SQL`                 |  `error`  |
 | [`pgaudit.*`](#pgaudit)                                        | Query Activity      | `SQL`                 |   `N/A`   |
 | [`cron.log_statement`](#cronlogstatement)                      | Extension Activity  | `API` + `CLI`         |  `true`   |
 
@@ -452,7 +451,7 @@ If a read-replica is acting on data that is being modified/discarded by the prim
 - Detecting operations that interfere with replica queries
 - Detecting operations that may cause replication lag
 
-**Example logs:**
+**Example log:**
 
 ```sh
 recovery still waiting after 1000.156 ms: recovery conflict on lock
@@ -535,7 +534,7 @@ To avoid excessive logging and mild performance penalties, it is not advised to 
 
 - Monitoring and optimizing slow queries
 
-**Example logs:**
+**Example log:**
 
 ```sh
 duration: 1661.934 ms plan: Query Text: SELECT * FROM example;
@@ -568,7 +567,7 @@ A limited version of `auto_explain.log_min_duration`. It only logs query stateme
 
 - Monitoring and optimizing slow queries
 
-**Example logs:**
+**Example log:**
 
 ```sh
 duration: 1.097 ms statement: select * from example_table limit 100;
@@ -594,7 +593,7 @@ It logs the duration of all queries, but not the queries themselves.
 
 - Monitoring query duration
 
-**Example logs:**
+**Example log:**
 
 ```sh
 duration: 0.599 ms
@@ -683,7 +682,7 @@ Determines if a log event should record the query that induced it as a subfield 
 - Detecting what queries induced specific logs
 - Detecting what queries induced a specific error
 
-**Example logs:**
+**Example log:**
 
 ```sh
 duplicate key value violates unique constraint "example_pkey"
@@ -696,6 +695,62 @@ query: "insert into example (id) values (1), (1);
 
 ```sql name=SQL
 alter role "postgres" set "log_min_error_statement" to 'error';
+```
+
+## Extension Activity
+
+Logs activity related to extension background operations.
+
+### `cron.log_statement`
+
+<Admonition type="caution">
+
+Can produce high levels of log activity for servers with frequent cron executions.
+
+</Admonition>
+
+Logs when the [pg_cron extension](/docs/guides/cron/install) starts a cron job.
+
+**Useful for:**
+
+- Monitoring successful cron job executions
+
+**Example log:**
+
+```sh
+cron job 1 starting: select 1
+```
+
+<Admonition type="tip">
+
+Beyond logs, [pg_cron](/docs/guides/cron/install) records all cron executions in the [`cron.job_run_details`](https://github.com/citusdata/pg_cron#monitoring-jobs) table.
+
+</Admonition>
+
+**Configuration methods:**
+
+<Admonition type="caution">
+
+Changing cron.log_statement requires a database restart, which is automatically initiated when the configuration is updated and typically takes only a few seconds.
+
+If you're using the CLI, you can add the `--no-restart` flag to postpone it. However, the new setting won't take effect until the database is restarted.
+
+</Admonition>
+
+```sh name=API
+curl https://api.supabase.com/v1/projects/PROJECT_REF/config/database/postgres \
+  --request PUT \
+  --header 'Content-Type: application/json' \
+  --header 'Authorization: Bearer ACCESS_TOKEN' \
+  --data '{
+  "cron.log_statement": true
+}'
+```
+
+```sh name=CLI
+supabase --experimental \
+postgres-config update --config cron.log_statement=false \
+--project-ref <project-ref>
 ```
 
 ## Resources
