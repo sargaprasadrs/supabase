@@ -1,7 +1,9 @@
 import { loader } from '@monaco-editor/react'
 
+import { getAssetPrefix } from '@/assetPrefix.shared'
 import { BASE_PATH } from '@/lib/constants'
 
+const assetPrefix = getAssetPrefix()
 // [Ivan] Serve the Monaco assets locally from the public folder (see #47182, which
 // dropped CDN loading in every environment and re-nested the assets under `vs/`). The
 // worker bootstrap (vs/base/worker/workerMain.js) loads the language workers (e.g.
@@ -14,6 +16,8 @@ import { BASE_PATH } from '@/lib/constants'
 // `routes/__root.tsx` (TanStack) — so the asset path can't drift between them.
 export function configureMonacoLoader() {
   if (typeof window !== 'undefined') {
-    loader.config({ paths: { vs: `${window.location.origin}${BASE_PATH}/monaco-editor/vs` } })
+    const prefix = assetPrefix ?? `${window.location.origin}${BASE_PATH}`
+
+    loader.config({ paths: { vs: `${prefix}/monaco-editor/vs` } })
   }
 }
