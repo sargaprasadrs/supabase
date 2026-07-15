@@ -30,13 +30,11 @@ import { useTrack } from '@/lib/telemetry/track'
 export interface AccessTokenListProps {
   searchString?: string
   scopedEnabled?: boolean
-  onDeleteSuccess: (id: number | string) => void
 }
 
 export const AccessTokenList = ({
   searchString = '',
   scopedEnabled = true,
-  onDeleteSuccess,
 }: AccessTokenListProps) => {
   const track = useTrack()
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -49,9 +47,8 @@ export const AccessTokenList = ({
   const { tokens, error, isLoading, isError } = useMergedAccessTokens({ scopedEnabled })
 
   const { mutate: deleteClassicToken } = useAccessTokenDeleteMutation({
-    onSuccess: (_, vars) => {
+    onSuccess: () => {
       track('access_token_removed', { tokenType: 'classic' })
-      onDeleteSuccess(vars.id)
       toast.success('Successfully deleted access token')
       setIsDeleteOpen(false)
     },
@@ -61,9 +58,8 @@ export const AccessTokenList = ({
   })
 
   const { mutate: deleteScopedToken } = useScopedAccessTokenDeleteMutation({
-    onSuccess: (_, vars) => {
+    onSuccess: () => {
       track('access_token_removed', { tokenType: 'classic' })
-      onDeleteSuccess(vars.id)
       toast.success('Successfully deleted access token')
       setIsDeleteOpen(false)
     },
