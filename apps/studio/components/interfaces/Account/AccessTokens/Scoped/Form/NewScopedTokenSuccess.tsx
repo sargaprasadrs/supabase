@@ -42,7 +42,7 @@ export const NewScopedTokenSuccess = ({ tokenName, tokenValue, onClose }: TokenS
             description="You won't be able to see this token value again. If you lose it, revoke the token and create a new one."
           >
             {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-            <label className="flex items-center gap-3 cursor-pointer bg-warning-200 border border-warning-400 rounded-md px-3 py-2">
+            <label className="flex items-center gap-3 cursor-pointer py-2">
               <Checkbox
                 id="key-copied"
                 checked={keyCopied}
