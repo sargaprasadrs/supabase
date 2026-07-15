@@ -1,5 +1,28 @@
 import { safeSql } from '../pg-format'
 
+/**
+ * Introspection SQL for user-defined types (enums, composites, ...).
+ *
+ * Two complete, standalone templates are kept so each rendered statement is
+ * easy to read and diff:
+ *
+ * - `TYPES_SQL` (legacy, default): left-joins two subqueries that are GROUP-BY
+ *   aggregated over the ENTIRE catalog -- `t_enums` over all of pg_enum and
+ *   `t_attributes` over the attributes of ALL composite relations. The wrapper's
+ *   schema/array filters are applied OUTSIDE, so the planner materializes both
+ *   aggregates over the full catalog and discards almost everything (5.7-9.6s on
+ *   a ~465K-row catalog).
+ * - `SCOPED_TYPES_SQL` (opt-in via `scoped: true`): identical output, but enums
+ *   and attributes are computed per-surviving-row via correlated scalar
+ *   subqueries (index scans on pg_enum's (enumtypid, enumsortorder) unique index
+ *   and pg_attribute's (attrelid, attnum) index) AFTER the row has passed the
+ *   schema/typrelid/array filters. Both templates end at the same trailing WHERE
+ *   `)` so `pg-meta-types.ts#list` can append the same filter/limit fragments to
+ *   either base.
+ *
+ * `scoped` defaults to false so Studio can roll the optimization out behind a
+ * feature flag; the legacy rendering must stay byte-identical when scoped=false.
+ */
 export const TYPES_SQL = /* SQL */ safeSql`
 select
   t.oid::int8 as id,
@@ -36,6 +59,55 @@ from
     group by
       c.oid
   ) as t_attributes on t_attributes.oid = t.typrelid
+where
+  (
+    t.typrelid = 0
+    or (
+      select
+        c.relkind = 'c'
+      from
+        pg_class c
+      where
+        c.oid = t.typrelid
+    )
+  )
+`
+
+export const SCOPED_TYPES_SQL = /* SQL */ safeSql`
+select
+  t.oid::int8 as id,
+  t.typname as name,
+  n.nspname as schema,
+  format_type (t.oid, null) as format,
+  coalesce(
+    (
+      select
+        jsonb_agg(e.enumlabel order by e.enumsortorder)
+      from
+        pg_enum e
+      where
+        e.enumtypid = t.oid
+    ),
+    '[]'
+  ) as enums,
+  coalesce(
+    (
+      select
+        jsonb_agg(
+          jsonb_build_object('name', a.attname, 'type_id', a.atttypid::int8)
+          order by a.attnum asc
+        )
+      from
+        pg_attribute a
+      where
+        a.attrelid = t.typrelid and not a.attisdropped
+    ),
+    '[]'
+  ) as attributes,
+  obj_description (t.oid, 'pg_type') as comment
+from
+  pg_type t
+  left join pg_namespace n on n.oid = t.typnamespace
 where
   (
     t.typrelid = 0

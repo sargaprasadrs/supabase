@@ -87,6 +87,59 @@ withTestDatabase(
   }
 )
 
+const OPTION_MATRIX = [
+  { label: 'default', options: {} },
+  { label: 'includeArrayTypes', options: { includeArrayTypes: true } },
+  { label: 'includedSchemas=public', options: { includedSchemas: ['public'] } },
+  { label: 'excludedSchemas=public', options: { excludedSchemas: ['public'] } },
+  {
+    label: 'excludedSchemas=public + includeSystemSchemas',
+    options: { excludedSchemas: ['public'], includeSystemSchemas: true },
+  },
+  {
+    label: 'includedSchemas=public + includeArrayTypes',
+    options: { includedSchemas: ['public'], includeArrayTypes: true },
+  },
+]
+
+withTestDatabase(
+  'scoped types.list matches legacy for all option combos (enums, composites, dropped attrs, array types)',
+  async ({ executeQuery }) => {
+    // Fixture coverage: multi-label enum with a NON-alphabetical label order (so
+    // enumsortorder matters), a composite type with a dropped attribute, and a
+    // composite referencing the enum.
+    await executeQuery(`
+      create type color as enum ('red', 'green', 'blue', 'yellow');
+      create type shipment as (id int8, note text, tossme int, color color);
+      alter type shipment drop attribute tossme;
+      create type point3 as (x float8, y float8, z float8);
+    `)
+
+    const sortById = (rows: Array<{ id: number }>) => [...rows].sort((a, b) => a.id - b.id)
+
+    for (const { label, options } of OPTION_MATRIX) {
+      const legacy = await pgMeta.types.list(options)
+      const scoped = await pgMeta.types.list({ ...options, scoped: true })
+
+      const legacyRes = sortById(legacy.zod.parse(await executeQuery(legacy.sql)))
+      const scopedRes = sortById(scoped.zod.parse(await executeQuery(scoped.sql)))
+
+      expect(scopedRes, `option combo: ${label}`).toEqual(legacyRes)
+    }
+
+    // Sanity: the enum/composite fixtures actually surface with correct
+    // ordering + dropped-attribute handling in the scoped path.
+    const { sql, zod } = await pgMeta.types.list({ includedSchemas: ['public'], scoped: true })
+    const res = zod.parse(await executeQuery(sql))
+    expect(res.find((t) => t.name === 'color')?.enums).toEqual(['red', 'green', 'blue', 'yellow'])
+    expect(res.find((t) => t.name === 'shipment')?.attributes.map((a) => a.name)).toEqual([
+      'id',
+      'note',
+      'color',
+    ])
+  }
+)
+
 withTestDatabase('composite type attributes', async ({ executeQuery }) => {
   await executeQuery(`create type test_composite as (id int8, data text);`)
 
