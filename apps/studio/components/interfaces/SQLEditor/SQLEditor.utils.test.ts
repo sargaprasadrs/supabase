@@ -4,6 +4,7 @@ import { describe, expect, it, test } from 'vitest'
 
 import type { IStandaloneCodeEditor } from './SQLEditor.types'
 import {
+  analyzeQueryIssues,
   appendEnableRLSStatements,
   assembleCompletionDiff,
   buildDebugPromptText,
@@ -15,10 +16,13 @@ import {
   getCreateTablesMissingRLS,
   getEditorSql,
   hasActiveEnsureRLSTrigger,
+  hasBlockingIssues,
   isUpdateWithoutWhere,
+  resolveConnectionString,
   suffixWithLimit,
 } from './SQLEditor.utils'
 import type { DatabaseEventTrigger } from '@/data/database-event-triggers/database-event-triggers-query'
+import type { Database } from '@/data/read-replicas/replicas-query'
 
 const buildTrigger = (overrides: Partial<DatabaseEventTrigger> = {}): DatabaseEventTrigger => ({
   oid: 1,
@@ -1043,5 +1047,111 @@ describe('SQLEditor.utils:buildDebugPromptText', () => {
     const result = buildDebugPromptText('select 1;', 'relation does not exist')
     expect(result).toContain('relation does not exist')
     expect(result).toContain('```sql\nselect 1;\n```')
+  })
+})
+
+describe('SQLEditor.utils:analyzeQueryIssues', () => {
+  it('flags a destructive query with no event triggers', () => {
+    expect(analyzeQueryIssues('drop table countries;', undefined)).toEqual({
+      hasDestructiveOperations: true,
+      hasUpdateWithoutWhere: false,
+      hasAlterDatabasePreventConnection: false,
+      createTablesMissingRLS: [],
+    })
+  })
+
+  it('filters out a CREATE TABLE covered by an active ensure_rls trigger', () => {
+    const result = analyzeQueryIssues('create table foo (id int);', [buildTrigger()])
+    expect(result.createTablesMissingRLS).toEqual([])
+  })
+
+  it('reports no issues for a clean select query', () => {
+    expect(analyzeQueryIssues('select * from countries;', undefined)).toEqual({
+      hasDestructiveOperations: false,
+      hasUpdateWithoutWhere: false,
+      hasAlterDatabasePreventConnection: false,
+      createTablesMissingRLS: [],
+    })
+  })
+})
+
+describe('SQLEditor.utils:hasBlockingIssues', () => {
+  const noIssues = {
+    hasDestructiveOperations: false,
+    hasUpdateWithoutWhere: false,
+    hasAlterDatabasePreventConnection: false,
+    createTablesMissingRLS: [],
+  }
+
+  it('returns false when there are no issues', () => {
+    expect(hasBlockingIssues(noIssues, false)).toBe(false)
+  })
+
+  it('returns true when hasDestructiveOperations is set', () => {
+    expect(hasBlockingIssues({ ...noIssues, hasDestructiveOperations: true }, false)).toBe(true)
+  })
+
+  it('returns true when hasUpdateWithoutWhere is set', () => {
+    expect(hasBlockingIssues({ ...noIssues, hasUpdateWithoutWhere: true }, false)).toBe(true)
+  })
+
+  it('returns true when hasAlterDatabasePreventConnection is set', () => {
+    expect(hasBlockingIssues({ ...noIssues, hasAlterDatabasePreventConnection: true }, false)).toBe(
+      true
+    )
+  })
+
+  it('returns true when createTablesMissingRLS is non-empty', () => {
+    expect(
+      hasBlockingIssues({ ...noIssues, createTablesMissingRLS: [{ tableName: 'foo' }] }, false)
+    ).toBe(true)
+  })
+
+  it('returns false when force is true, even with issues present', () => {
+    expect(hasBlockingIssues({ ...noIssues, hasDestructiveOperations: true }, true)).toBe(false)
+  })
+
+  it('returns false when force is true and there are no issues', () => {
+    expect(hasBlockingIssues(noIssues, true)).toBe(false)
+  })
+})
+
+const buildDatabase = (overrides: Partial<Database> = {}): Database => ({
+  cloud_provider: 'AWS',
+  connectionString: 'postgres://primary',
+  db_host: 'db.example.com',
+  db_name: 'postgres',
+  db_port: 5432,
+  db_user: 'postgres',
+  identifier: 'primary',
+  inserted_at: '2024-01-01T00:00:00Z',
+  region: 'us-east-1',
+  restUrl: 'https://example.com',
+  size: 'micro',
+  status: 'ACTIVE_HEALTHY',
+  ...overrides,
+})
+
+describe('SQLEditor.utils:resolveConnectionString', () => {
+  it('returns the matching database connection string', () => {
+    const databases = [
+      buildDatabase({ identifier: 'primary', connectionString: 'postgres://primary' }),
+      buildDatabase({ identifier: 'replica-1', connectionString: 'postgres://replica-1' }),
+    ]
+    expect(resolveConnectionString(databases, 'replica-1')).toBe('postgres://replica-1')
+  })
+
+  it('returns undefined when no database matches', () => {
+    const databases = [buildDatabase({ identifier: 'primary' })]
+    expect(resolveConnectionString(databases, 'unknown')).toBeUndefined()
+  })
+
+  it('returns undefined when databases is undefined', () => {
+    expect(resolveConnectionString(undefined, 'primary')).toBeUndefined()
+  })
+
+  it('normalizes a null connectionString to undefined', () => {
+    const databases = [buildDatabase({ identifier: 'primary', connectionString: null })]
+    expect(resolveConnectionString(databases, 'primary')).toBeUndefined()
   })
 })

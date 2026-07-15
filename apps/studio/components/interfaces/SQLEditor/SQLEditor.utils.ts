@@ -8,9 +8,10 @@ import {
   sqlAiDisclaimerComment,
   updateWithoutWhereRegex,
 } from './SQLEditor.constants'
-import { ContentDiff, type IStandaloneCodeEditor } from './SQLEditor.types'
+import { ContentDiff, type IStandaloneCodeEditor, type PotentialIssues } from './SQLEditor.types'
 import type { SnippetWithContent } from '@/data/content/sql-folders-query'
 import type { DatabaseEventTrigger } from '@/data/database-event-triggers/database-event-triggers-query'
+import type { Database } from '@/data/read-replicas/replicas-query'
 import { generateUuid } from '@/lib/api/snippets.browser'
 import { removeCommentsFromSql } from '@/lib/helpers'
 import { sqlEventParser } from '@/lib/sql-event-parser'
@@ -174,6 +175,53 @@ export function checkAlterDatabaseConnection(sql: string): boolean {
     .filter((statement) => statement.trim().toLowerCase().startsWith('alter database'))
   return statements.some((statement) =>
     alterDatabasePreventConnectionStatements.some((x) => statement.toLowerCase().includes(x))
+  )
+}
+
+/**
+ * Runs every pre-execution safety check on a query and packages the results as
+ * `PotentialIssues`, used both to decide whether to show the warning modal and
+ * to render its content.
+ */
+export function analyzeQueryIssues(
+  sql: string,
+  eventTriggers: DatabaseEventTrigger[] | undefined
+): PotentialIssues {
+  return {
+    hasDestructiveOperations: checkDestructiveQuery(sql),
+    hasUpdateWithoutWhere: isUpdateWithoutWhere(sql),
+    hasAlterDatabasePreventConnection: checkAlterDatabaseConnection(sql),
+    createTablesMissingRLS: filterTablesCoveredByEnsureRLSTrigger(
+      getCreateTablesMissingRLS(sql),
+      hasActiveEnsureRLSTrigger(eventTriggers)
+    ),
+  }
+}
+
+/**
+ * Whether `issues` should block an unforced run behind the warning modal.
+ */
+export function hasBlockingIssues(issues: PotentialIssues, force: boolean): boolean {
+  return (
+    !force &&
+    (!!issues.hasDestructiveOperations ||
+      !!issues.hasUpdateWithoutWhere ||
+      !!issues.hasAlterDatabasePreventConnection ||
+      (issues.createTablesMissingRLS?.length ?? 0) > 0)
+  )
+}
+
+/**
+ * Resolves the connection string for the currently selected database (primary
+ * or read replica) from the read-replicas list. Shared by the run and explain
+ * flows so the lookup isn't duplicated.
+ */
+export function resolveConnectionString(
+  databases: Database[] | undefined,
+  selectedDatabaseId: string | undefined
+): string | undefined {
+  return (
+    databases?.find((db) => db.identifier === selectedDatabaseId)?.connectionString ?? undefined
   )
 }
 

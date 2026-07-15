@@ -7,13 +7,10 @@ import { toast } from 'sonner'
 import { untitledSnippetTitle } from './SQLEditor.constants'
 import type { PotentialIssues } from './SQLEditor.types'
 import {
-  checkAlterDatabaseConnection,
-  checkDestructiveQuery,
+  analyzeQueryIssues,
   checkIfAppendLimitRequired,
-  filterTablesCoveredByEnsureRLSTrigger,
-  getCreateTablesMissingRLS,
-  hasActiveEnsureRLSTrigger,
-  isUpdateWithoutWhere,
+  hasBlockingIssues,
+  resolveConnectionString,
   suffixWithLimit,
 } from './SQLEditor.utils'
 import { useSQLEditorContext } from './SQLEditorContext'
@@ -108,28 +105,10 @@ export function useSqlEditorExecution({
         return
       }
 
-      const hasDestructiveOperations = checkDestructiveQuery(sql)
-      const hasUpdateWithoutWhere = isUpdateWithoutWhere(sql)
-      const hasAlterDatabasePreventConnection = checkAlterDatabaseConnection(sql)
-      const createTablesMissingRLS = filterTablesCoveredByEnsureRLSTrigger(
-        getCreateTablesMissingRLS(sql),
-        hasActiveEnsureRLSTrigger(eventTriggers)
-      )
+      const issues = analyzeQueryIssues(sql, eventTriggers)
 
-      const queryHasIssues =
-        !force &&
-        (hasDestructiveOperations ||
-          hasUpdateWithoutWhere ||
-          hasAlterDatabasePreventConnection ||
-          createTablesMissingRLS.length > 0)
-
-      if (queryHasIssues) {
-        setPotentialIssues({
-          hasDestructiveOperations,
-          hasUpdateWithoutWhere,
-          hasAlterDatabasePreventConnection,
-          createTablesMissingRLS,
-        })
+      if (hasBlockingIssues(issues, force)) {
+        setPotentialIssues(issues)
         return
       }
 
@@ -149,9 +128,10 @@ export function useSqlEditorExecution({
       clearHighlights()
 
       const impersonatedRoleState = getImpersonatedRoleState()
-      const connectionString = databases?.find(
-        (db) => db.identifier === databaseSelectorState.selectedDatabaseId
-      )?.connectionString
+      const connectionString = resolveConnectionString(
+        databases,
+        databaseSelectorState.selectedDatabaseId
+      )
       if (!isValidConnString(connectionString)) {
         clearPendingRunRefocus()
         return toast.error('Unable to run query: Connection string is missing')
