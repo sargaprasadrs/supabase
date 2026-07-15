@@ -24,7 +24,7 @@ No. Replication slot creation, checks, and reconnection attempts to your databas
 
 Yes — any message the server sends over an open socket counts, including heartbeats and Phoenix control frames (`phx_reply`, `phx_close`, rejoin payloads). In practice this overhead is minimal compared to actual application data, **unless** a client is stuck in a join/leave loop (for example, a broken reconnect handler that repeatedly subscribes and unsubscribes from the same channel). Realtime tracks join rate internally, so a runaway rejoin loop is something worth ruling out if your numbers look unusually high relative to your connection count.
 
-## Can repeated tenant stop/start or cold-start cycles cause large billed egress even when my payload is small?
+## Can repeated tenant stop/start or cold-start cycles cause large billed egress even when payload is small?
 
 No. Tenant idling out (`no connected users`) and reinitializing on the next connection is a normal part of the multi-tenant architecture and is not a mechanism that inflates Realtime Egress. If you're seeing a large gap between your application-measured payload and your billed egress, look at message volume and fan-out first (see below) rather than tenant lifecycle events.
 
