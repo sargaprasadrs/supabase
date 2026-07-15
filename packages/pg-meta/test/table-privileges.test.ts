@@ -88,6 +88,83 @@ withTestDatabase('list table privileges', async ({ executeQuery }) => {
   )
 })
 
+type Priv = { grantor: string; grantee: string; privilege_type: string; is_grantable: boolean }
+type PrivRow = { relation_id: number; schema: string; name: string; privileges: Priv[] }
+
+// Row order (no ORDER BY) and the intra-row privilege aggregation order can
+// differ between the legacy (aggregate-then-filter) and scoped (filter-then-
+// aggregate) plans, so normalize both before comparing row *content*.
+const normalize = (rows: PrivRow[]): PrivRow[] =>
+  [...rows]
+    .map((r) => ({
+      ...r,
+      privileges: [...r.privileges].sort((a, b) =>
+        `${a.privilege_type}|${a.grantee}|${a.grantor}|${a.is_grantable}`.localeCompare(
+          `${b.privilege_type}|${b.grantee}|${b.grantor}|${b.is_grantable}`
+        )
+      ),
+    }))
+    .sort((a, b) => a.relation_id - b.relation_id)
+
+withTestDatabase(
+  'scoped tablePrivileges.list/retrieve matches legacy (multiple grantees incl PUBLIC)',
+  async ({ executeQuery }) => {
+    // Multiple grantees including PUBLIC to exercise the PUBLIC (oid 0) branch of
+    // the grantee union and multi-grantee aggregation.
+    await executeQuery(`
+      create role grantee_a;
+      create role grantee_b;
+      create table public.priv_demo (id int primary key, data text);
+      grant select, insert on public.priv_demo to grantee_a;
+      grant update (data) on public.priv_demo to grantee_b with grant option;
+      grant select on public.priv_demo to public;
+    `)
+
+    // list(): default and schema-filtered combos.
+    for (const options of [{}, { includedSchemas: ['public'] }, { excludedSchemas: ['public'] }]) {
+      const legacy = await pgMeta.tablePrivileges.list(options)
+      const scoped = await pgMeta.tablePrivileges.list({ ...options, scoped: true })
+      const legacyRes = normalize(legacy.zod.parse(await executeQuery(legacy.sql)) as PrivRow[])
+      const scopedRes = normalize(scoped.zod.parse(await executeQuery(scoped.sql)) as PrivRow[])
+      expect(scopedRes, `list options: ${JSON.stringify(options)}`).toEqual(legacyRes)
+    }
+
+    // The scoped path must surface the PUBLIC grantee for priv_demo.
+    const { sql, zod } = await pgMeta.tablePrivileges.list({
+      includedSchemas: ['public'],
+      scoped: true,
+    })
+    const rows = zod.parse(await executeQuery(sql)) as PrivRow[]
+    const demo = rows.find((r) => r.name === 'priv_demo')!
+    expect(demo.privileges.some((p) => p.grantee === 'PUBLIC')).toBe(true)
+
+    // retrieve() by id and by schema+name.
+    const legacyById = await pgMeta.tablePrivileges.retrieve({ id: demo.relation_id })
+    const scopedById = await pgMeta.tablePrivileges.retrieve({
+      id: demo.relation_id,
+      scoped: true,
+    })
+    expect(
+      normalize([scopedById.zod.parse((await executeQuery(scopedById.sql))[0]) as PrivRow])
+    ).toEqual(normalize([legacyById.zod.parse((await executeQuery(legacyById.sql))[0]) as PrivRow]))
+
+    const legacyByName = await pgMeta.tablePrivileges.retrieve({
+      name: 'priv_demo',
+      schema: 'public',
+    })
+    const scopedByName = await pgMeta.tablePrivileges.retrieve({
+      name: 'priv_demo',
+      schema: 'public',
+      scoped: true,
+    })
+    expect(
+      normalize([scopedByName.zod.parse((await executeQuery(scopedByName.sql))[0]) as PrivRow])
+    ).toEqual(
+      normalize([legacyByName.zod.parse((await executeQuery(legacyByName.sql))[0]) as PrivRow])
+    )
+  }
+)
+
 withTestDatabase('revoke & grant table privileges', async ({ executeQuery }) => {
   // Get initial table privileges
   const { sql: listSql, zod: listZod } = await pgMeta.tablePrivileges.list()
