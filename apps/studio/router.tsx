@@ -5,7 +5,7 @@ import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query
 import { routeTree } from './routeTree.gen'
 import { initSentryTanStackClient } from './sentry.tanstack'
 import { getQueryClient } from '@/data/query-client'
-import { BASE_PATH, IS_PLATFORM } from '@/lib/constants'
+import { IS_PLATFORM } from '@/lib/constants'
 import { parseSearch, stringifySearch } from '@/lib/router-search-params'
 
 export interface RouterContext {
@@ -16,9 +16,14 @@ export interface RouterContext {
 // so a long-lived dashboard session never 404s on a lazily-loaded JS chunk or
 // gets a surprise version change mid-session. It's a session cookie (no
 // expiry) — cleared when the tab/window closes, so the next visit gets the
-// latest deploy. Scoped to BASE_PATH so the version check (hit at the root
-// `/api/...`, outside this Path) stays unpinned and can still detect new
-// deploys; the "Refresh" toast clears it before reloading (see
+// latest deploy. Path MUST be `/`, not BASE_PATH: Studio's own redirect chain
+// starts at the bare domain root (`/` → BASE_PATH → BASE_PATH/org, see
+// redirects.shared.ts), and a cookie scoped to BASE_PATH is never sent on
+// that first `/` hop — so it'd resolve against the latest deployment,
+// contaminating the shell HTML with new-deployment chunk hashes before the
+// pin ever kicks in. The version-check request stays unpinned via
+// `credentials: 'omit'` (see deployment-commit-query.ts), not via cookie
+// scoping. The "Refresh" toast clears it before reloading (see
 // use-check-latest-deploy). No-op unless we're on a Vercel deploy with Skew
 // Protection enabled.
 function pinDeploymentForSession() {
@@ -28,7 +33,7 @@ function pinDeploymentForSession() {
   const deploymentId = process.env.NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID
   if (!deploymentId) return
   if (document.cookie.includes('__vdpl=')) return
-  document.cookie = `__vdpl=${deploymentId}; Path=${BASE_PATH || '/'}; SameSite=Lax; Secure`
+  document.cookie = `__vdpl=${deploymentId}; Path=/; SameSite=Lax; Secure`
 }
 
 // Backstop for the pin above: if a lazily-loaded chunk 404s — most likely the
@@ -55,7 +60,7 @@ function registerChunkErrorBackstop() {
     } catch {
       // ignore — worst case we lose loop protection for this reload.
     }
-    document.cookie = `__vdpl=; Path=${BASE_PATH || '/'}; Max-Age=0`
+    document.cookie = `__vdpl=; Path=/; Max-Age=0`
     window.location.reload()
   })
 }
