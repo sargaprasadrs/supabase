@@ -47,7 +47,7 @@ This is the most common source of confusion, and almost always comes down to **c
 
 Before escalating a gap between measured payload and billed egress, re-derive your estimate using **delivered events**, not writes: `(events per day) × (average delivered payload size) × (average concurrent subscribers)`. This calculation frequently accounts for a gap that initially looks inexplicable.
 
-## What should I check before contacting Support about a Realtime Egress discrepancy?
+## What should be checked before contacting Supabase Support about a Realtime Egress discrepancy?
 
 - Re-calculate your expected egress using delivered events and fan-out (see above), not raw database write counts.
 - Check whether any channel has multiple overlapping `postgres_changes` subscriptions that could cause duplicate delivery.
