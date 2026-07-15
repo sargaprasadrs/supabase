@@ -10,7 +10,7 @@ import {
   Webhook,
 } from 'lucide-react'
 
-import { PARTNER_TYPES } from '../../components/Partners/PartnerIntakeForm'
+import { PARTNER_TYPES } from '@/components/Partners/PartnerIntakeForm'
 
 export const PARTNER_FORM_ANCHOR = '#become-a-partner'
 
@@ -27,13 +27,9 @@ const partnersPageData = {
       link: PARTNER_FORM_ANCHOR,
     },
     secondaryCta: {
-      label: 'Browse the Partner Catalog',
-      link: '/partners/catalog',
-      icon: <ArrowRight strokeWidth={1.5} />,
-    },
-    secondaryCta: {
       label: 'Partner Catalog',
       link: '/partners/catalog',
+      icon: <ArrowRight strokeWidth={1.5} />,
     },
   },
   reasonsSection: {
