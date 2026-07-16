@@ -26,12 +26,14 @@ export async function CodeBlock({
   contents,
   children,
   skipTypeGeneration,
+  hideControls = false,
 }: PropsWithChildren<{
   className?: string
   lang?: string
   lineNumbers?: boolean
   contents?: string
   skipTypeGeneration?: boolean
+  hideControls?: boolean
 }>) {
   let code = (contents || extractCode(children)).trim()
   const lang = tryToBundledLanguage(langSetting || '') || extractLang(children)
@@ -107,7 +109,7 @@ export async function CodeBlock({
           )}
         </code>
       </pre>
-      <CodeBlockControls content={code.trim()} />
+      {!hideControls && <CodeBlockControls content={code.trim()} />}
     </div>
   )
 }
