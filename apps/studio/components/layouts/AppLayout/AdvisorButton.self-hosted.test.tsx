@@ -31,7 +31,6 @@ describe('AdvisorButton on self-hosted', () => {
       hasCriticalIssues: false,
       hasWarningIssues: false,
       hasUnreadNotifications: false,
-      criticalNotifications: [],
     })
   })
 
@@ -43,6 +42,6 @@ describe('AdvisorButton on self-hosted', () => {
     render(<AdvisorButton projectRef="project-ref" />)
 
     expect(mockUseAdvisorAttention).toHaveBeenCalledWith({ projectRef: 'project-ref' })
-    expect(screen.getByRole('button')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Advisor Center' })).toBeInTheDocument()
   })
 })

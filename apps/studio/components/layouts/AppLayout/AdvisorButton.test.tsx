@@ -26,7 +26,6 @@ describe('AdvisorButton', () => {
       hasCriticalIssues: false,
       hasWarningIssues: false,
       hasUnreadNotifications: false,
-      criticalNotifications: [],
     })
   })
 
@@ -39,7 +38,6 @@ describe('AdvisorButton', () => {
       hasCriticalIssues: false,
       hasWarningIssues: true,
       hasUnreadNotifications: false,
-      criticalNotifications: [],
     })
 
     const { container } = render(<AdvisorButton projectRef="project-ref" />)
@@ -54,7 +52,6 @@ describe('AdvisorButton', () => {
       hasCriticalIssues: true,
       hasWarningIssues: false,
       hasUnreadNotifications: false,
-      criticalNotifications: [],
     })
 
     const { container } = render(<AdvisorButton projectRef="project-ref" />)
@@ -62,6 +59,7 @@ describe('AdvisorButton', () => {
     expect(container.querySelector('.bg-destructive')).toBeInTheDocument()
     expect(container.querySelector('.bg-warning')).not.toBeInTheDocument()
     expect(container.querySelector('.text-destructive')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Critical advisor issues/i })).toBeInTheDocument()
   })
 
   it('falls back to the brand dot for unread notifications when there are no issues', () => {
@@ -69,7 +67,6 @@ describe('AdvisorButton', () => {
       hasCriticalIssues: false,
       hasWarningIssues: false,
       hasUnreadNotifications: true,
-      criticalNotifications: [],
     })
 
     const { container } = render(<AdvisorButton projectRef="project-ref" />)
@@ -77,6 +74,8 @@ describe('AdvisorButton', () => {
     expect(container.querySelector('.bg-brand')).toBeInTheDocument()
     expect(container.querySelector('.bg-warning')).not.toBeInTheDocument()
     expect(container.querySelector('.bg-destructive')).not.toBeInTheDocument()
-    expect(screen.getByRole('button')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Unread advisor notifications/i })
+    ).toBeInTheDocument()
   })
 })

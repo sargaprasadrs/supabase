@@ -16,6 +16,16 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
 
   const isOpen = activeSidebar?.id === SIDEBAR_KEYS.ADVISOR_PANEL
 
+  const statusLabel = hasCriticalIssues
+    ? 'Critical advisor issues'
+    : hasWarningIssues
+      ? 'Advisor warnings'
+      : hasUnreadNotifications
+        ? 'Unread advisor notifications'
+        : undefined
+
+  const accessibleLabel = statusLabel ? `Advisor Center, ${statusLabel}` : 'Advisor Center'
+
   const handleClick = () => {
     track('header_advisor_button_clicked')
     toggleSidebar(SIDEBAR_KEYS.ADVISOR_PANEL)
@@ -27,6 +37,7 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
         variant="outline"
         size="tiny"
         id="advisor-center-trigger"
+        aria-label={accessibleLabel}
         className={cn(
           'rounded-full w-[32px] h-[32px] flex items-center justify-center p-0 group',
           hasCriticalIssues &&
@@ -50,19 +61,27 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
             isOpen && 'text-background group-hover:text-background'
           )}
         />
-        <span className="sr-only">Advisor Center</span>
       </ButtonTooltip>
       {hasCriticalIssues ? (
         <span
+          aria-hidden="true"
           className={cn(
             'pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full',
+            // Shared mid-weight red so the dot still reads on the inverted
+            // selected fill in both light and dark.
             isOpen ? 'bg-destructive-500' : 'bg-destructive'
           )}
         />
       ) : hasWarningIssues ? (
-        <span className="pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-warning" />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-warning"
+        />
       ) : hasUnreadNotifications ? (
-        <span className="pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand" />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand"
+        />
       ) : null}
     </div>
   )

@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { computeAdvisorAttention } from './useAdvisorAttention.utils'
 import { useAdvisorSignals } from './useAdvisorSignals'
 import { useProjectLintsQuery } from '@/data/lint/lint-query'
-import { useNotificationsV2Query } from '@/data/notifications/notifications-v2-query'
+import { useNotificationsSummaryQuery } from '@/data/notifications/notifications-v2-summary-query'
 import { IS_PLATFORM } from '@/lib/constants'
 
 interface UseAdvisorAttentionOptions {
@@ -22,22 +22,17 @@ export const useAdvisorAttention = ({
     enabled: enabled && !!projectRef,
   })
 
-  const { data: notificationsData } = useNotificationsV2Query(
-    { filters: {}, limit: 20 },
-    { enabled: enabled && IS_PLATFORM }
-  )
-
-  const notifications = useMemo(() => {
-    return notificationsData?.pages.flatMap((page) => page) ?? []
-  }, [notificationsData?.pages])
+  const { data: notificationSummary } = useNotificationsSummaryQuery({
+    enabled: enabled && IS_PLATFORM,
+  })
 
   return useMemo(
     () =>
       computeAdvisorAttention({
         lints,
-        signalItems,
-        notifications,
+        signalItems: signalItems ?? [],
+        notificationSummary,
       }),
-    [lints, signalItems, notifications]
+    [lints, signalItems, notificationSummary]
   )
 }

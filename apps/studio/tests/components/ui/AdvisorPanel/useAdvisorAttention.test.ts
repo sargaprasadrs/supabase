@@ -3,20 +3,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useAdvisorAttention } from '@/components/ui/AdvisorPanel/useAdvisorAttention'
 
-const { mockUseProjectLintsQuery, mockUseNotificationsV2Query, mockUseAdvisorSignals } = vi.hoisted(
-  () => ({
+const { mockUseProjectLintsQuery, mockUseNotificationsSummaryQuery, mockUseAdvisorSignals } =
+  vi.hoisted(() => ({
     mockUseProjectLintsQuery: vi.fn(),
-    mockUseNotificationsV2Query: vi.fn(),
+    mockUseNotificationsSummaryQuery: vi.fn(),
     mockUseAdvisorSignals: vi.fn(),
-  })
-)
+  }))
 
 vi.mock('@/data/lint/lint-query', () => ({
   useProjectLintsQuery: mockUseProjectLintsQuery,
 }))
 
-vi.mock('@/data/notifications/notifications-v2-query', () => ({
-  useNotificationsV2Query: mockUseNotificationsV2Query,
+vi.mock('@/data/notifications/notifications-v2-summary-query', () => ({
+  useNotificationsSummaryQuery: mockUseNotificationsSummaryQuery,
 }))
 
 vi.mock('@/components/ui/AdvisorPanel/useAdvisorSignals', () => ({
@@ -31,8 +30,8 @@ vi.mock('@/lib/constants', async (importOriginal) => ({
 describe('useAdvisorAttention on self-hosted', () => {
   beforeEach(() => {
     mockUseProjectLintsQuery.mockReturnValue({ data: [], isPending: false, isError: false })
-    mockUseNotificationsV2Query.mockReturnValue({
-      data: { pages: [[]] },
+    mockUseNotificationsSummaryQuery.mockReturnValue({
+      data: undefined,
       isPending: false,
       isError: false,
     })
@@ -48,12 +47,9 @@ describe('useAdvisorAttention on self-hosted', () => {
     vi.clearAllMocks()
   })
 
-  it('disables the notifications query so no request is made to the platform endpoint', () => {
+  it('disables the notifications summary query so no request is made to the platform endpoint', () => {
     renderHook(() => useAdvisorAttention({ projectRef: 'project-ref' }))
 
-    expect(mockUseNotificationsV2Query).toHaveBeenCalledWith(
-      { filters: {}, limit: 20 },
-      { enabled: false }
-    )
+    expect(mockUseNotificationsSummaryQuery).toHaveBeenCalledWith({ enabled: false })
   })
 })
