@@ -32,10 +32,7 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
           hasCriticalIssues &&
             !isOpen &&
             'bg-destructive-200 border-destructive-500 hover:border-destructive-600',
-          hasCriticalIssues &&
-            isOpen &&
-            'bg-destructive-300 border-destructive-500 hover:border-destructive-600',
-          !hasCriticalIssues && isOpen && 'bg-foreground text-background'
+          isOpen && 'bg-foreground text-background'
         )}
         onClick={handleClick}
         tooltip={{
@@ -48,19 +45,24 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
           size={16}
           strokeWidth={1.5}
           className={cn(
-            hasCriticalIssues && 'text-destructive group-hover:text-destructive',
+            hasCriticalIssues && !isOpen && 'text-destructive group-hover:text-destructive',
             !hasCriticalIssues && !isOpen && 'text-foreground-light group-hover:text-foreground',
-            !hasCriticalIssues && isOpen && 'text-background group-hover:text-background'
+            isOpen && 'text-background group-hover:text-background'
           )}
         />
         <span className="sr-only">Advisor Center</span>
       </ButtonTooltip>
       {hasCriticalIssues ? (
-        <span className="pointer-events-none absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive" />
+        <span
+          className={cn(
+            'pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full',
+            isOpen ? 'bg-destructive-500' : 'bg-destructive'
+          )}
+        />
       ) : hasWarningIssues ? (
-        <span className="pointer-events-none absolute top-1 right-1 w-2 h-2 rounded-full bg-warning" />
+        <span className="pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-warning" />
       ) : hasUnreadNotifications ? (
-        <span className="pointer-events-none absolute top-1 right-1 w-2 h-2 rounded-full bg-brand" />
+        <span className="pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand" />
       ) : null}
     </div>
   )
