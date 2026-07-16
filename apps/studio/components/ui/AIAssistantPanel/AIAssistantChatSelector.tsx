@@ -295,7 +295,7 @@ export const AIAssistantChatMenu = () => {
                         <Button
                           aria-label="More actions"
                           variant="text"
-                          className="px-0.5 h-[20px] opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
+                          className="px-0.5 h-[20px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
                           icon={<MoreVertical size={12} strokeWidth={2} />}
                           onClick={(e) => {
                             e.preventDefault()
