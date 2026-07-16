@@ -250,7 +250,9 @@ const ComposedChartHandler = ({
         onSelect: ({ start, end }) => {
           const projectRef = ref as string
           if (!projectRef) return
-          const url = `/project/${projectRef}/logs/postgres-logs?its=${start}&ite=${end}`
+          const its = dayjs(Number(start)).toISOString()
+          const ite = dayjs(Number(end)).toISOString()
+          const url = `/project/${projectRef}/logs/postgres-logs?its=${its}&ite=${ite}`
           router.push(url)
         },
       },

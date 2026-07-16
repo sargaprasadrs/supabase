@@ -1,11 +1,15 @@
 import dayjs from 'dayjs'
 import { useState } from 'react'
 
+type Coordinate = string | number
+
 type ChartHighlightMouseEvent = {
   activeLabel?: string
-  coordinates?: string
+  coordinates?: Coordinate
   chartX?: number
   chartY?: number
+  nextLabel?: string
+  nextCoordinate?: Coordinate
 }
 
 type Pixel = { x: number; y: number }
@@ -13,7 +17,7 @@ type Pixel = { x: number; y: number }
 export interface ChartHighlight {
   left: string | undefined
   right: string | undefined
-  coordinates: { left?: string; right?: string }
+  coordinates: { left?: Coordinate; right?: Coordinate }
   isSelecting: boolean
   popoverPosition: { x: number; y: number } | null
   handleMouseDown: (e: ChartHighlightMouseEvent) => void
@@ -25,7 +29,7 @@ export interface ChartHighlight {
 export function useChartHighlight(): ChartHighlight {
   const [left, setLeft] = useState<string | undefined>(undefined)
   const [right, setRight] = useState<string | undefined>(undefined)
-  const [coordinates, setCoordinates] = useState<{ left?: string; right?: string }>({
+  const [coordinates, setCoordinates] = useState<{ left?: Coordinate; right?: Coordinate }>({
     left: undefined,
     right: undefined,
   })
@@ -33,14 +37,18 @@ export function useChartHighlight(): ChartHighlight {
   const [popoverPosition, setPopoverPosition] = useState<{ x: number; y: number } | null>(null)
   const [initialPoint, setInitialPoint] = useState<string | undefined>(undefined)
   const [anchorPixel, setAnchorPixel] = useState<Pixel | undefined>(undefined)
+  const [hasDragged, setHasDragged] = useState(false)
+  const [nextPoint, setNextPoint] = useState<{ label?: string; coordinate?: Coordinate }>({})
 
   const handleMouseDown = (e: ChartHighlightMouseEvent) => {
     clearHighlight()
     if (!e || !e.activeLabel) return
     setIsSelecting(true)
+    setHasDragged(false)
     setLeft(e.activeLabel)
     setRight(e.activeLabel)
     setInitialPoint(e.activeLabel)
+    setNextPoint({ label: e.nextLabel, coordinate: e.nextCoordinate })
     setCoordinates({ left: e.coordinates, right: e.coordinates })
     if (typeof e.chartX === 'number' && typeof e.chartY === 'number') {
       setAnchorPixel({ x: e.chartX, y: e.chartY })
@@ -49,6 +57,8 @@ export function useChartHighlight(): ChartHighlight {
 
   const handleMouseMove = (e: ChartHighlightMouseEvent) => {
     if (!isSelecting || !e || !e.activeLabel) return
+
+    if (e.activeLabel !== initialPoint) setHasDragged(true)
 
     const currentTimestamp = dayjs(e.activeLabel)
     const initialTimestamp = dayjs(initialPoint)
@@ -77,6 +87,12 @@ export function useChartHighlight(): ChartHighlight {
     setIsSelecting(false)
     setInitialPoint(undefined)
 
+    const isClick = !hasDragged
+    if (isClick && nextPoint.label) {
+      setRight(nextPoint.label)
+      setCoordinates((prev) => ({ ...prev, right: nextPoint.coordinate }))
+    }
+
     // Anchor the popover to where the selection started rather than wherever
     // the mouse happened to be released.
     if (anchorPixel) {
@@ -100,6 +116,8 @@ export function useChartHighlight(): ChartHighlight {
     setPopoverPosition(null)
     setInitialPoint(undefined)
     setAnchorPixel(undefined)
+    setHasDragged(false)
+    setNextPoint({})
   }
 
   return {

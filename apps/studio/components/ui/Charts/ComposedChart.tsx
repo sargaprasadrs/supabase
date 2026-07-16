@@ -490,9 +490,21 @@ export function ComposedChart({
 
             const activeTimestamp =
               data[activeTooltipIndex]?.[xAxisKey] ?? data[activeTooltipIndex]?.timestamp
+
+            const next = data[activeTooltipIndex + 1]
+            const prev = data[activeTooltipIndex - 1]
+            const nextTimestamp =
+              next?.[xAxisKey] ??
+              next?.timestamp ??
+              (prev && activeTimestamp != null
+                ? Number(activeTimestamp) + (Number(activeTimestamp) - Number(prev[xAxisKey]))
+                : undefined)
+
             chartHighlight?.handleMouseDown({
               activeLabel: activeTimestamp?.toString(),
               coordinates: activeLabel,
+              nextLabel: nextTimestamp?.toString(),
+              nextCoordinate: nextTimestamp,
             })
           }}
           onMouseUp={chartHighlight?.handleMouseUp}
