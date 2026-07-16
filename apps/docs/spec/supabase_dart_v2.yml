@@ -113,6 +113,9 @@ functions:
           );
           ```
 
+  - id: auth-api
+    title: 'Auth'
+    category: Auth
   - id: sign-up
     title: 'signUp()'
     description: |
@@ -1847,6 +1850,8 @@ functions:
           ```
   - id: auth-mfa-api
     title: 'Overview'
+    category: Auth
+    subcategory: Auth MFA
     notes: |
       This section contains methods commonly used for Multi-Factor Authentication (MFA) and are invoked behind the `supabase.auth.mfa` namespace.
 
@@ -2174,6 +2179,8 @@ functions:
           ```
   - id: passkey-api
     title: 'Auth Passkey'
+    category: Auth
+    subcategory: Auth Passkey
     notes: |
       This section contains methods for WebAuthn passkey registration, authentication, and management. Methods are invoked behind the `supabase.auth.passkey` namespace.
 
@@ -2330,6 +2337,8 @@ functions:
           ```
   - id: admin-api
     title: 'Overview'
+    category: Auth
+    subcategory: Auth Admin
     notes: |
       - Any method under the `supabase.auth.admin` namespace requires a `secret` key.
       - These methods are considered admin methods and should be called on a trusted server. Never expose your `secret` key in the Flutter app.
@@ -2828,6 +2837,8 @@ functions:
           ```
   - id: admin-passkey-api
     title: 'Passkey Admin API'
+    category: Auth
+    subcategory: Passkey Admin
     notes: |
       Contains passkey administration methods, accessed under the `supabase.auth.admin.passkey` namespace. Requires a `secret` key.
 
@@ -2875,6 +2886,9 @@ functions:
             passkeyId: '34e770dd-9ff9-416c-87fa-43b31d7ef225',
           );
           ```
+  - id: functions-api
+    title: 'Edge Functions'
+    category: Edge Functions
   - id: invoke
     title: 'invoke()'
     description: |
@@ -2923,6 +2937,9 @@ functions:
             },
           );
           ```
+  - id: database-api
+    title: 'Database'
+    category: Database
   - id: select
     description: |
       Perform a SELECT query on the table or view.
@@ -3929,6 +3946,9 @@ functions:
           Postgres functions that return tables can also be combined with [Filters](/docs/reference/dart/using-filters) and [Modifiers](/docs/reference/dart/using-modifiers).
         hideCodeBlock: true
 
+  - id: realtime-api
+    title: 'Realtime'
+    category: Realtime
   - id: subscribe
     description: |
       Subscribe to realtime changes in your database.
@@ -4211,6 +4231,8 @@ functions:
           ```
   - id: file-buckets
     title: 'Overview'
+    category: Storage
+    subcategory: File Buckets
     notes: |
       This section contains methods for working with File Buckets.
   # - id: analytics-buckets
@@ -5053,6 +5075,8 @@ functions:
           ```
   - id: using-modifiers
     title: Using Modifiers
+    category: Database
+    subcategory: Using modifiers
     description: |
       Filters work on the row level. That is, they allow you to return rows that
       only match certain conditions without changing the shape of the rows.
@@ -5671,6 +5695,8 @@ functions:
         isSpotlight: false
   - id: using-filters
     title: Using Filters
+    category: Database
+    subcategory: Using filters
     description: |
       Filters allow you to only return rows that match certain conditions.
 
