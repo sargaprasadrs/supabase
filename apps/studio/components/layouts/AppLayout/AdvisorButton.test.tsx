@@ -58,7 +58,6 @@ describe('AdvisorButton', () => {
 
     expect(container.querySelector('.bg-destructive')).toBeInTheDocument()
     expect(container.querySelector('.bg-warning')).not.toBeInTheDocument()
-    expect(container.querySelector('.text-destructive')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Critical advisor issues/i })).toBeInTheDocument()
   })
 

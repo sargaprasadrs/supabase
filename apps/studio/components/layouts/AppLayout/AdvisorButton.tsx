@@ -32,7 +32,7 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
   }
 
   return (
-    <div className="relative inline-flex size-8 items-center justify-center">
+    <div className="relative">
       <ButtonTooltip
         variant="outline"
         size="tiny"
@@ -40,9 +40,9 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
         aria-label={accessibleLabel}
         className={cn(
           'rounded-full w-[32px] h-[32px] flex items-center justify-center p-0 group',
-          hasCriticalIssues &&
-            !isOpen &&
-            'bg-destructive-200 border-destructive-500 hover:border-destructive-600',
+          // Critical fill/border only when idle — selected matches the other
+          // header circles (foreground fill, no destructive outline).
+          hasCriticalIssues && !isOpen && 'bg-destructive-200 border-destructive-500',
           isOpen && 'bg-foreground text-background'
         )}
         onClick={handleClick}
@@ -56,8 +56,7 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
           size={16}
           strokeWidth={1.5}
           className={cn(
-            hasCriticalIssues && !isOpen && 'text-destructive group-hover:text-destructive',
-            !hasCriticalIssues && !isOpen && 'text-foreground-light group-hover:text-foreground',
+            'text-foreground-light group-hover:text-foreground',
             isOpen && 'text-background group-hover:text-background'
           )}
         />
@@ -66,21 +65,20 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
         <span
           aria-hidden="true"
           className={cn(
-            'pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full',
-            // Shared mid-weight red so the dot still reads on the inverted
-            // selected fill in both light and dark.
-            isOpen ? 'bg-destructive-500' : 'bg-destructive'
+            'absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full',
+            // Slightly lighter on the inverted selected fill in light mode only.
+            isOpen ? 'bg-destructive-500 dark:bg-destructive' : 'bg-destructive'
           )}
         />
       ) : hasWarningIssues ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-warning"
+          className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-warning"
         />
       ) : hasUnreadNotifications ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand"
+          className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand"
         />
       ) : null}
     </div>
