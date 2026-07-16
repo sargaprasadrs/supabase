@@ -2344,7 +2344,8 @@ functions:
   - id: oauth-get-authorization-details
     title: 'oauth.getAuthorizationDetails()'
     notes: |
-      Retrieves details about a pending OAuth authorization request, including the requesting client and the requested scopes, so you can render a consent screen. The `authorizationId` is provided as a query parameter on the redirect URL that starts the flow.
+      Retrieves details about a pending OAuth authorization request so you can render a consent screen. The `authorizationId` is provided as a query parameter on the redirect URL that starts the flow.
+      - Returns a sealed `OAuthAuthorizationResponse`. Handle both variants: `OAuthAuthorizationDetailsResponse` carries the requesting `client` and requested `scope` for the consent screen, while `OAuthAuthorizationRedirectResponse` is returned when the user has already granted consent and only carries a `redirectUrl` to forward to.
     params:
       - name: authorizationId
         isOptional: false
@@ -2359,8 +2360,17 @@ functions:
           final authorizationId =
               Uri.parse(currentUrl).queryParameters['authorization_id']!;
 
-          final details =
+          final response =
               await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
+
+          switch (response) {
+            case OAuthAuthorizationRedirectResponse(:final redirectUrl):
+              // The user already consented; forward them without a consent screen.
+              break;
+            case OAuthAuthorizationDetailsResponse(:final client, :final scope):
+              // Render a consent screen for `client` requesting `scope`.
+              break;
+          }
           ```
   - id: oauth-approve-authorization
     title: 'oauth.approveAuthorization()'
@@ -2957,6 +2967,7 @@ functions:
     subcategory: Custom Provider Admin
     notes: |
       - Methods under the `supabase.auth.admin.customProviders` namespace manage custom OIDC/OAuth providers programmatically. Requires a `secret` key.
+      - These are admin methods and should be called on a trusted server. Never expose your `secret` key in the Flutter app.
       - Custom providers are referenced with a `custom:` prefix when signing in (for example `custom:mycompany`), and are distinct from the OAuth 2.1 server clients managed through `supabase.auth.admin.oauth`.
   - id: admin-custom-providers-list
     title: 'admin.customProviders.listProviders()'
