@@ -169,9 +169,16 @@ export async function generateDartReferenceDump(): Promise<{ methodCount: number
     }
 
     // A method inherits the current section. It may still override either field
-    // explicitly, which stays backward compatible and handles the odd exception.
+    // independently: an explicit `subcategory` always wins, an explicit
+    // `category` (with no subcategory) starts a fresh, subcategory-less section,
+    // and anything left unset is inherited from the current header.
     const category = fn.category ?? currentCategory
-    const subcategory = fn.category ? (fn.subcategory ?? null) : currentSubcategory
+    const subcategory =
+      fn.subcategory !== undefined
+        ? fn.subcategory
+        : fn.category !== undefined
+          ? null
+          : currentSubcategory
     if (!category) {
       orphaned.push(fn.id)
       continue
