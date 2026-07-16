@@ -493,11 +493,12 @@ export function ComposedChart({
 
             const next = data[activeTooltipIndex + 1]
             const prev = data[activeTooltipIndex - 1]
+            const prevTimestamp = prev?.[xAxisKey] ?? prev?.timestamp
             const nextTimestamp =
               next?.[xAxisKey] ??
               next?.timestamp ??
-              (prev && activeTimestamp != null
-                ? Number(activeTimestamp) + (Number(activeTimestamp) - Number(prev[xAxisKey]))
+              (prevTimestamp != null && activeTimestamp != null
+                ? Number(activeTimestamp) + (Number(activeTimestamp) - Number(prevTimestamp))
                 : undefined)
 
             chartHighlight?.handleMouseDown({
