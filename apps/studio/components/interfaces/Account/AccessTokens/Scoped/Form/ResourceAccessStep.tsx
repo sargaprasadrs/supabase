@@ -171,6 +171,7 @@ export const ResourceAccessStep = ({ form, error }: ResourceAccessStepProps) => 
                         deletableBadge
                         className="w-full h-[34px] min-h-auto"
                         ref={field.ref}
+                        id="organizationSlugs"
                       />
                       <MultiSelectorContent>
                         <MultiSelectorInput placeholder="Search organizations" showResetIcon />
@@ -208,6 +209,7 @@ export const ResourceAccessStep = ({ form, error }: ResourceAccessStepProps) => 
                       deletableBadge
                       className="w-full h-[34px] min-h-auto"
                       ref={field.ref}
+                      id="projectRefs"
                     />
                     <MultiSelectorContent>
                       <MultiSelectorInput placeholder="Search organizations" showResetIcon />
