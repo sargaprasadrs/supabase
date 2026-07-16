@@ -50,11 +50,8 @@ function isForeignDataWrapper(integration: MarketplaceIntegration) {
 }
 
 /**
- * Reads a per-listing feature flag using the templated naming convention
- * (`<slug>DashboardIntegrationEnabled`), defaulting to `false` when absent. Used to gate
- * marketplace "preview" listings (for users where the global `previewMarketplaceListingsEnabled`
- * flag is not set) and, via the INTEGRATION_FLAGS guard, to hard-disable specific integrations
- * anywhere in the marketplace UI (listing, filters, featured grid) regardless of review_status.
+ * Use per-listing feature flags with a templated naming convention in order to independently
+ * enable/disable previews for users where the global `previewMarketplaceListingsEnabled` flag is not set.
  */
 export const isPreviewEnabled = (featureFlags: FeatureFlagContextType, listingSlug: string) => {
   const flagName = `${listingSlug}DashboardIntegrationEnabled`

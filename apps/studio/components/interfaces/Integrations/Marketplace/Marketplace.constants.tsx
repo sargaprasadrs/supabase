@@ -17,7 +17,6 @@ export const FEATURED_INTEGRATION_IDS = [
   'cron',
   'queues',
   'stripe_sync_engine',
-  'stripe_wrapper',
   'data_api',
 ] as const
 
