@@ -10,7 +10,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from 'ui'
-import { Admonition } from 'ui-patterns/admonition'
 
 import {
   countConfiguredInCategory,
