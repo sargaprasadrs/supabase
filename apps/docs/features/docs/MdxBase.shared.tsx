@@ -5,8 +5,8 @@ import AuthProviders from '~/components/AuthProviders'
 import { AuthSmsProviderConfig } from '~/components/AuthSmsProviderConfig'
 import ButtonCard from '~/components/ButtonCard'
 import { ComputeDiskLimitsTable } from '~/components/ComputeDiskLimitsTable'
-import { CustomContent } from '~/components/CustomContent'
 import { ContentListings } from '~/components/ContentListings'
+import { CustomContent } from '~/components/CustomContent'
 import { Extensions } from '~/components/Extensions'
 import Image, { type ImageProps } from '~/components/Image'
 import { McpCiConfigBlock } from '~/components/McpCiConfigBlock'
@@ -19,6 +19,7 @@ import { RealtimeLimitsEstimator } from '~/components/RealtimeLimitsEstimator'
 import { RegionsList, SmartRegionsList } from '~/components/RegionsList'
 import { SharedData } from '~/components/SharedData'
 import StepHikeCompact from '~/components/StepHikeCompact'
+import { TerraformProviderSchema } from '~/components/TerraformProviderSchema'
 import { CodeSampleDummy, CodeSampleWrapper } from '~/features/directives/CodeSample.client'
 import { NamedCodeBlock } from '~/features/directives/CodeTabs.components'
 import { MdxAnchor } from '~/features/docs/MdxAnchor'
@@ -105,6 +106,7 @@ const components = {
   StepHikeCompact,
   Tabs,
   TabPanel,
+  TerraformProviderSchema,
   InfoTooltip,
   a: MdxAnchor,
   h2: (props: ComponentPropsWithoutRef<'h2'>) => (

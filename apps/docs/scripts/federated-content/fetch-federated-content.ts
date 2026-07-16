@@ -4,7 +4,7 @@ import { mkdir, readdir, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { BASE_PATH } from '~/lib/constants'
-import { GUIDES_DIRECTORY } from '~/lib/docs'
+import { GENERATED_DIRECTORY, GUIDES_DIRECTORY } from '~/lib/docs'
 import remarkMkDocsAdmonition from '~/lib/mdx/plugins/remarkAdmonition'
 import { removeTitle } from '~/lib/mdx/plugins/remarkRemoveTitle'
 import remarkPyMdownTabs from '~/lib/mdx/plugins/remarkTabs'
@@ -50,6 +50,13 @@ async function loadSources(): Promise<FederatedContentSource[]> {
 }
 
 /**
+ * Path of a page's remote file, relative to the repo root.
+ */
+function remotePath(source: FederatedContentSource, page: FederatedPage): string {
+  return page.useRoot ? page.remoteFile : `${source.docsDir}/${page.remoteFile}`
+}
+
+/**
  * Rewrites a link URL: pages mapped in `source.pageMap` go to their local
  * `/guides/<section>` route, everything else falls back to `externalSite`.
  */
@@ -70,13 +77,19 @@ function transformUrl(source: FederatedContentSource, url: string): string {
           ? relative(new URL(source.externalSite).pathname, pathname)
           : pathname
     ).replace(/^\//, '')
+    const docsRelative = relativePath.replace(new RegExp(`^${source.docsDir}/`), '')
 
-    const mapped = source.pageMap.find(({ remoteFile }) => `${relativePath}.md` === remoteFile)
+    const mapped = source.pageMap.find(({ remoteFile, useRoot }) =>
+      useRoot ? `${relativePath}.md` === remoteFile : `${docsRelative}.md` === remoteFile
+    )
 
     // If we have a mapping for this page, use the mapped path; otherwise
     // link to the original docs
-    return mapped
-      ? `${BASE_PATH}/guides/${source.section}${mapped.slug ? `/${mapped.slug}` : ''}${hash}`
+    if (mapped) {
+      return `${BASE_PATH}/guides/${source.section}${mapped.slug ? `/${mapped.slug}` : ''}${hash}`
+    }
+    return source.rawFallback
+      ? `${source.externalSite}${pathname}${hash}`
       : `${source.externalSite}/${relativePath}${hash}`
   } catch (err) {
     throw Error('[DOCS] fetch-federated-content: Error transforming markdown URL', { cause: err })
@@ -87,14 +100,19 @@ async function fetchPage(source: FederatedContentSource, page: FederatedPage): P
   const raw = await getGitHubFileContents({
     org: source.org,
     repo: source.repo,
-    path: `${source.docsDir}/${page.remoteFile}`,
+    path: remotePath(source, page),
     branch: source.branch,
   })
 
-  const tree = fromMarkdown(raw, PARSE_OPTIONS)
+  const tree = fromMarkdown(raw.replace(/<!--[\s\S]*?-->/g, ''), PARSE_OPTIONS)
   remarkMkDocsAdmonition()(tree)
   remarkPyMdownTabs()(tree)
-  removeTitle(page.meta.title)(tree)
+  if (page.dropLeadingHeading) {
+    const [firstNode] = tree.children
+    if (firstNode?.type === 'heading' && firstNode.depth === 1) tree.children.splice(0, 1)
+  } else {
+    removeTitle(page.meta.title)(tree)
+  }
   visit(tree, ['link', 'image', 'definition'], (node: any) => {
     node.url = transformUrl(source, node.url)
   })
@@ -104,18 +122,33 @@ async function fetchPage(source: FederatedContentSource, page: FederatedPage): P
     title: page.meta.title,
     // Points the "Edit this page on GitHub" link back at the source repo
     // instead of this generated file.
-    editLink: `${source.org}/${source.repo}/blob/${source.branch}/${source.docsDir}/${page.remoteFile}`,
+    editLink: `${source.org}/${source.repo}/blob/${source.branch}/${remotePath(source, page)}`,
   }
   if (page.meta.subtitle) frontmatter.subtitle = page.meta.subtitle
 
   return matter.stringify(`${content}\n`, frontmatter)
 }
 
+async function fetchRawFile(
+  source: FederatedContentSource,
+  rawFile: NonNullable<FederatedContentSource['rawFiles']>[number]
+): Promise<void> {
+  const content = await getGitHubFileContents({
+    org: source.org,
+    repo: source.repo,
+    path: `${source.docsDir}/${rawFile.remoteFile}`,
+    branch: source.branch,
+  })
+
+  await mkdir(GENERATED_DIRECTORY, { recursive: true })
+  await writeFile(join(GENERATED_DIRECTORY, rawFile.outFile), content)
+}
+
 async function fetchSource(source: FederatedContentSource): Promise<void> {
   await mkdir(join(GUIDES_DIRECTORY, source.section), { recursive: true })
 
-  await Promise.all(
-    source.pageMap.map(async (page) => {
+  await Promise.all([
+    ...source.pageMap.map(async (page) => {
       const output = await fetchPage(source, page)
 
       const outPath = page.slug
@@ -123,8 +156,9 @@ async function fetchSource(source: FederatedContentSource): Promise<void> {
         : join(GUIDES_DIRECTORY, `${source.section}.mdx`)
 
       await writeFile(outPath, output)
-    })
-  )
+    }),
+    ...(source.rawFiles ?? []).map((rawFile) => fetchRawFile(source, rawFile)),
+  ])
 }
 
 async function fetchFederatedContent() {
