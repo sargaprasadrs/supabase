@@ -74,6 +74,22 @@ describe('computeAdvisorAttention', () => {
       }).hasUnreadNotifications
     ).toBe(true)
 
+    expect(
+      computeAdvisorAttention({
+        lints: [],
+        signalItems: [],
+        notifications: [notification({ priority: 'Warning' })],
+      }).hasWarningIssues
+    ).toBe(true)
+
+    expect(
+      computeAdvisorAttention({
+        lints: [],
+        signalItems: [],
+        notifications: [notification({ priority: 'Warning', status: 'seen' })],
+      }).hasWarningIssues
+    ).toBe(false)
+
     // Summary wins over the list (covers all pages, not just the first).
     expect(
       computeAdvisorAttention({

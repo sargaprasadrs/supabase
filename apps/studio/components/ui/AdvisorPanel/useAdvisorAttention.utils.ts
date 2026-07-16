@@ -12,6 +12,10 @@ export function isCriticalUnreadNotification(notification: Notification) {
   return notification.status === 'new' && notification.priority === 'Critical'
 }
 
+export function isWarningUnreadNotification(notification: Notification) {
+  return notification.status === 'new' && notification.priority === 'Warning'
+}
+
 export function computeAdvisorAttention({
   lints,
   signalItems,
@@ -29,7 +33,9 @@ export function computeAdvisorAttention({
   const hasCriticalNotifications = notificationSummary
     ? notificationSummary.has_critical
     : notifications.some(isCriticalUnreadNotification)
-  const hasWarningNotifications = notificationSummary ? notificationSummary.has_warning : false
+  const hasWarningNotifications = notificationSummary
+    ? notificationSummary.has_warning
+    : notifications.some(isWarningUnreadNotification)
   const hasUnreadNotifications = notificationSummary
     ? notificationSummary.unread_count > 0
     : notifications.some((notification) => notification.status === 'new')
