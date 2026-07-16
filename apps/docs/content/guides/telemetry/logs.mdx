@@ -265,7 +265,7 @@ The Logs Explorer runs on **ClickHouse**. Every log line from every source is a 
 
 <Admonition type="note">
 
-ClickHouse became the default engine in June 2026. Projects created before then queried logs on BigQuery, whose `cross join unnest(metadata)` syntax is deprecated. Rewrite those queries in the ClickHouse syntax shown here.
+ClickHouse has been the default engine since June 2026. Projects created before this date use BigQuery, whose `cross join unnest(metadata)` syntax is deprecated. We recommend rewriting those queries in the ClickHouse syntax shown in this guide.
 
 </Admonition>
 
@@ -383,15 +383,15 @@ Refer to the full field reference for each source below. Each source's structure
               <table>
                 <thead>
                   <tr>
-                    <th className="font-bold">Path</th>
-                    <th className="font-bold">Type</th>
+                    <th>Path</th>
+                    <th>Type</th>
                   </tr>
                 </thead>
                 <tbody>
                   {fields.map((field) => (
                     <tr>
-                      <td className="font-mono">{field.path}</td>
-                      <td className="font-mono">{field.type}</td>
+                      <td>{field.path}</td>
+                      <td>{field.type}</td>
                     </tr>
                   ))}
                 </tbody>
