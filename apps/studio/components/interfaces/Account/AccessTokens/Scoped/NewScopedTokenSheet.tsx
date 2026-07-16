@@ -40,8 +40,10 @@ export const NewScopedTokenSheet = () => {
       name: values.tokenName.trim(),
       permissions,
       ...(expires_at ? { expires_at } : {}),
-      ...(values.resourceAccess === 'project' ? values.projectRefs : {}),
-      ...(values.resourceAccess === 'organization' ? values.organizationSlugs : {}),
+      ...(values.resourceAccess === 'project' ? { project_refs: values.projectRefs } : {}),
+      ...(values.resourceAccess === 'organization'
+        ? { organization_slugs: values.organizationSlugs }
+        : {}),
     }
 
     createToken(payload, {
@@ -62,7 +64,8 @@ export const NewScopedTokenSheet = () => {
   // By default, if users created a token successfully, they can't click outside the sheet to close it
   // as we need to make sure they copied the new token first
   const handleOpenChange = (open: boolean, isSafe = false) => {
-    if (step === 'success' && !isSafe) return
+    if (open === false && step === 'success' && !isSafe) return
+    setStep('form')
     setIsOpen(open)
   }
 
