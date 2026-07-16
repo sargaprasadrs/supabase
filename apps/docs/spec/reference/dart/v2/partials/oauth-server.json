@@ -1,0 +1,5 @@
+{
+  "id": "oauth-server",
+  "title": "OAuth Server",
+  "notes": "This section contains methods for the OAuth 2.1 server authorization API, invoked behind the `supabase.auth.oauth` namespace.\n"
+}
