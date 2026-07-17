@@ -227,11 +227,7 @@ export function AttachmentUploadDisplay({
                   className={removeAttachmentButtonClassName}
                   onClick={() => removeFileUpload(idx)}
                 >
-                  <X
-                    aria-hidden="true"
-                    strokeWidth={3}
-                    className="size-2.5 shrink-0 text-contrast"
-                  />
+                  <RemoveAttachmentIcon />
                 </button>
               </div>
             )
@@ -249,11 +245,7 @@ export function AttachmentUploadDisplay({
                   className={removeAttachmentButtonClassName}
                   onClick={() => removeFileUpload(idx)}
                 >
-                  <X
-                    aria-hidden="true"
-                    strokeWidth={3}
-                    className="size-2.5 shrink-0 text-contrast"
-                  />
+                  <RemoveAttachmentIcon />
                 </button>
               </div>
             )
