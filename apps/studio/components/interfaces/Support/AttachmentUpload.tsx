@@ -23,8 +23,16 @@ import { useProfile } from '@/lib/profile'
 const MAX_ATTACHMENTS = 5
 
 const removeAttachmentButtonClassName = cn(
-  'absolute -top-1 -right-1 inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-red-900 p-0 leading-none cursor-pointer',
+  'absolute -top-1 -right-1 size-4 shrink-0 rounded-full bg-red-900 p-0 cursor-pointer',
   'outline-hidden focus-visible:ring-2 focus-visible:ring-foreground-muted focus-visible:ring-offset-1 focus-visible:ring-offset-background'
+)
+
+const RemoveAttachmentIcon = () => (
+  <X
+    aria-hidden="true"
+    strokeWidth={3}
+    className="pointer-events-none absolute left-1/2 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 text-contrast"
+  />
 )
 
 const uploadAttachments = async ({ userId, files }: { userId: string; files: File[] }) => {
