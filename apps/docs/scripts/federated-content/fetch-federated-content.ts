@@ -104,7 +104,7 @@ async function fetchPage(source: FederatedContentSource, page: FederatedPage): P
     branch: source.branch,
   })
 
-  const tree = fromMarkdown(raw.replace(/<!--[\s\S]*?-->/g, ''), PARSE_OPTIONS)
+  const tree = fromMarkdown(raw, PARSE_OPTIONS)
   remarkMkDocsAdmonition()(tree)
   remarkPyMdownTabs()(tree)
   if (page.dropLeadingHeading) {
