@@ -25,7 +25,11 @@ export const SortableSection = ({ id, children }: SortableSectionProps) => {
       <button
         type="button"
         aria-label="Drag to reorder section"
-        className="absolute -left-6 top-2 text-foreground-muted hover:text-foreground focus:outline-hidden cursor-grab active:cursor-grabbing"
+        className={cn(
+          'absolute -left-6 top-2 text-foreground-muted hover:text-foreground cursor-grab active:cursor-grabbing',
+          'rounded-sm outline-hidden',
+          'focus-visible:outline-solid focus-visible:outline-4 focus-visible:outline-offset-1 focus-visible:outline-border-strong'
+        )}
         {...attributes}
         {...listeners}
         tabIndex={0}

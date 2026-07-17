@@ -69,17 +69,15 @@ export const BucketsPolicies = ({
             </PageSectionDescription>
           </PageSectionSummary>
           <CollapsibleTrigger asChild>
-            <button tabIndex={0}>
-              <span className="sr-only">Toggle bucket list</span>
-              <ChevronUp
-                size={14}
-                className={cn(
-                  !expanded && 'rotate-180',
-                  'transition',
-                  'text-foreground-light hover:text-foreground'
-                )}
-              />
-            </button>
+            <Button
+              type="button"
+              variant="text"
+              size="tiny"
+              className="px-1"
+              aria-label="Toggle bucket list"
+            >
+              <ChevronUp size={14} className={cn(!expanded && 'rotate-180', 'transition')} />
+            </Button>
           </CollapsibleTrigger>
         </PageSectionMeta>
         <CollapsibleContent>
