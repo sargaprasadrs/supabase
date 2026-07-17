@@ -21,7 +21,7 @@ const buttonVariants = cva(
   ease-out
   duration-200
   rounded-md
-  transition-all
+  transition-colors
   ${focusRing}
   border
   `,

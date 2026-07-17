@@ -190,7 +190,7 @@ function CommandMenuTriggerInput({
           'bg-surface-100/75 text-foreground-lighter border',
           'hover:bg-surface-100/100  hover:border-stronger',
           'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-          'transition',
+          'transition-colors',
           className
         )}
       >
