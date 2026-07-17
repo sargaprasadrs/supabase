@@ -576,7 +576,7 @@ export function ComposedChart({
                   key={attribute.name}
                   type="linear"
                   dataKey={attribute.name}
-                  stackId="1"
+                  stackId={attributes?.find((a) => a.attribute === attribute.name)?.stackId ?? attribute.name}
                   fill={`url(#gradient-${attribute.name})`}
                   fillOpacity={1}
                   stroke={attribute.color}
