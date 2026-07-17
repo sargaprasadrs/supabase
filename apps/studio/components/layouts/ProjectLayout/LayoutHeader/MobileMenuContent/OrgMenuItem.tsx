@@ -47,6 +47,10 @@ export function OrgMenuItem({
         >
           {content}
         </button>
+      ) : disabled ? (
+        <span aria-disabled="true" data-active={isActive} className={menuButtonClass}>
+          {content}
+        </span>
       ) : (
         <Link
           href={item.href}

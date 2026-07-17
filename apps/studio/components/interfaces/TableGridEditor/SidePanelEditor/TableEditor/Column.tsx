@@ -450,7 +450,13 @@ export const Column = ({
       </div>
       {!hasImportContent && (
         <div className="flex w-[5%] justify-end">
-          <button tabIndex={0} className="cursor-pointer" onClick={() => onRemoveColumn()}>
+          <button
+            type="button"
+            tabIndex={0}
+            aria-label="Remove column"
+            className="cursor-pointer"
+            onClick={() => onRemoveColumn()}
+          >
             <X size={16} strokeWidth={1} />
           </button>
         </div>
