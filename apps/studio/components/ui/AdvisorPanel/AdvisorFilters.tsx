@@ -63,14 +63,19 @@ export const AdvisorFilters = ({
           </TabsList>
         </Tabs>
         <div className="flex items-center gap-x-2 pr-3">
-          <ButtonTooltip
-            variant="text"
-            className={cn('w-7 h-7 p-0', showFilters && 'text-foreground bg-surface-300')}
-            icon={<ListFilter strokeWidth={1.5} />}
-            onClick={() => setShowFilters((value) => !value)}
-            aria-label="Toggle filters"
-            tooltip={{ content: { side: 'bottom', text: 'Filter' } }}
-          />
+          <div className="relative">
+            <ButtonTooltip
+              variant="text"
+              className={cn('w-7 h-7 p-0', showFilters && 'text-foreground bg-surface-300')}
+              icon={<ListFilter strokeWidth={1.5} />}
+              onClick={() => setShowFilters((value) => !value)}
+              aria-label="Toggle filters"
+              tooltip={{ content: { side: 'bottom', text: 'Filter' } }}
+            />
+            {!showFilters && hasActiveFilters && (
+              <span className="pointer-events-none absolute right-1 top-1 h-2 w-2 rounded-full bg-brand" />
+            )}
+          </div>
           <ButtonTooltip
             variant="text"
             className="w-7 h-7 p-0"

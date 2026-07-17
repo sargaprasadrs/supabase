@@ -121,7 +121,7 @@ export const AdvisorPanelBody = ({
           const metadataCapitalize = secondaryText === undefined && item.createdAt !== undefined
 
           return (
-            <div key={`${item.source}-${item.id}`} className="relative border-b">
+            <div key={`${item.source}-${item.id}`} className="group relative border-b">
               <Button
                 variant="text"
                 className={cn(
@@ -162,7 +162,10 @@ export const AdvisorPanelBody = ({
                   variant="text"
                   disabled={!canArchive}
                   aria-label={archiveLabel}
-                  className={cn('pointer-events-auto h-7 w-7 p-0', !canArchive && 'opacity-30')}
+                  className={cn(
+                    'pointer-events-auto h-7 w-7 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                    !canArchive && 'group-hover:opacity-30 focus-visible:opacity-30'
+                  )}
                   icon={
                     canArchive && isArchived ? (
                       <ArchiveRestore size={16} strokeWidth={1.5} />
