@@ -12,7 +12,6 @@ import { Sparkles, Terminal } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
-import { cn } from 'ui'
 import { IconPanel } from 'ui-patterns/IconPanel'
 
 import { getCustomContent } from '../lib/custom-content/getCustomContent'
@@ -171,19 +170,10 @@ export function FrameworkQuickstarts() {
 const HomePageCover = ({ title, cliCode }: { title: string; cliCode: ReactNode }) => {
   const { homepageHeading } = getCustomContent(['homepage:heading'])
 
-  // Logo + gap overhang so the title/description share the same left edge as
-  // LayoutMainContent (max-w-6xl) in the sections below.
-  const logoOverhang = 'xl:-ml-[calc(100px+2rem)] xl:w-[calc(100%+100px+2rem)]'
-
   return (
     <div className="w-full border-b bg-muted/10">
-      <div className="mx-auto max-w-6xl px-6 py-16">
-        <div
-          className={cn(
-            'flex flex-col items-center gap-10 xl:flex-row xl:items-center xl:gap-12',
-            logoOverhang
-          )}
-        >
+      <div className="mx-auto max-w-7xl px-6 py-16">
+        <div className="flex flex-col items-start gap-10 xl:flex-row xl:items-center xl:gap-16">
           <div className="flex w-full flex-1 flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
             <DocsCoverLogo aria-hidden="true" className="w-[60px] shrink-0 md:w-[100px]" />
             <div className="flex min-w-0 flex-col">

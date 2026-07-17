@@ -22,7 +22,7 @@ const HomeLayout = ({ children }: PropsWithChildren) => {
             />
           }
         />
-        <LayoutMainContent>
+        <LayoutMainContent className="max-w-7xl">
           <div className={['relative transition-all ease-out', 'duration-150 '].join(' ')}>
             <div className="prose max-w-none">{children}</div>
           </div>
