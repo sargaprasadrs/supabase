@@ -7,9 +7,17 @@ export interface FederatedPage {
   meta: {
     title: string
     subtitle?: string
+    description?: string
+    tocVideo?: string
   }
   /** Path of the file in the remote repo, relative to `docsDir`. */
   remoteFile: string
+  /**
+   * Unconditionally drop the first heading, regardless of whether its text
+   * matches `meta.title`. Use when the curated title intentionally differs
+   * from the source file's own heading text.
+   */
+  dropLeadingHeading?: boolean
 }
 
 /**

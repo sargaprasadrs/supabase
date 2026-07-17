@@ -94,7 +94,12 @@ async function fetchPage(source: FederatedContentSource, page: FederatedPage): P
   const tree = fromMarkdown(raw, PARSE_OPTIONS)
   remarkMkDocsAdmonition()(tree)
   remarkPyMdownTabs()(tree)
-  removeTitle(page.meta.title)(tree)
+  if (page.dropLeadingHeading) {
+    const [firstNode] = tree.children
+    if (firstNode?.type === 'heading' && firstNode.depth === 1) tree.children.splice(0, 1)
+  } else {
+    removeTitle(page.meta.title)(tree)
+  }
   visit(tree, ['link', 'image', 'definition'], (node: any) => {
     node.url = transformUrl(source, node.url)
   })
@@ -107,6 +112,8 @@ async function fetchPage(source: FederatedContentSource, page: FederatedPage): P
     editLink: `${source.org}/${source.repo}/blob/${source.branch}/${source.docsDir}/${page.remoteFile}`,
   }
   if (page.meta.subtitle) frontmatter.subtitle = page.meta.subtitle
+  if (page.meta.description) frontmatter.description = page.meta.description
+  if (page.meta.tocVideo) frontmatter.tocVideo = page.meta.tocVideo
 
   return matter.stringify(`${content}\n`, frontmatter)
 }
