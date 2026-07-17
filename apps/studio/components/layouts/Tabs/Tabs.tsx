@@ -235,6 +235,7 @@ export const EditorTabs = () => {
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
+                    handleClose('new')
                   }}
                   className="ml-1 opacity-0 group-hover:opacity-100 hover:bg-200 rounded-xs cursor-pointer"
                   onMouseDown={(e) => {
@@ -244,7 +245,6 @@ export const EditorTabs = () => {
                   onPointerDown={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    handleClose('new')
                   }}
                 >
                   <X size={12} className="text-foreground-light" />

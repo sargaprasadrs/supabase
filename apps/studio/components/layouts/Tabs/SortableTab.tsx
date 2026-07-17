@@ -121,6 +121,7 @@ export const SortableTab = ({
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
+              onClose(tab.id)
             }}
             className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-200 rounded-xs cursor-pointer"
             onMouseDown={(e) => {
@@ -130,7 +131,6 @@ export const SortableTab = ({
             onPointerDown={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              onClose(tab.id)
             }}
           >
             <X size={12} className="text-foreground-light" />
