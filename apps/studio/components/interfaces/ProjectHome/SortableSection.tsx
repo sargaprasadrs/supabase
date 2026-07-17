@@ -24,11 +24,11 @@ export const SortableSection = ({ id, children }: SortableSectionProps) => {
     <div ref={setNodeRef} style={style} className="relative will-change-transform">
       <button
         type="button"
-        tabIndex={0}
         aria-label="Drag to reorder section"
         className="absolute -left-6 top-2 text-foreground-muted hover:text-foreground focus:outline-hidden cursor-grab active:cursor-grabbing"
         {...attributes}
         {...listeners}
+        tabIndex={0}
       >
         <GripVertical size={14} />
       </button>

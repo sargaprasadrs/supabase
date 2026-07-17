@@ -124,9 +124,9 @@ export const Column = ({
       <div className={`w-[5%] ${!isNewRecord ? 'hidden' : ''}`}>
         <button
           ref={setActivatorNodeRef}
-          tabIndex={0}
           {...attributes}
           {...listeners}
+          tabIndex={0}
           className="opacity-50 hover:opacity-100 disabled:hover:opacity-50 transition cursor-grab text-foreground"
           type="button"
         >
