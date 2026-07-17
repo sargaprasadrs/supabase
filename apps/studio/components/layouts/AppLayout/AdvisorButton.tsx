@@ -42,7 +42,9 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
           'rounded-full w-[32px] h-[32px] flex items-center justify-center p-0 group',
           // Critical fill/border only when idle — selected matches the other
           // header circles (foreground fill, no destructive outline).
-          hasCriticalIssues && !isOpen && 'bg-destructive-200 border-destructive-500',
+          hasCriticalIssues &&
+            !isOpen &&
+            'bg-destructive-200 border-destructive-500 hover:border-destructive',
           isOpen && 'bg-foreground text-background'
         )}
         onClick={handleClick}
