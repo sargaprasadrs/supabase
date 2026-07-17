@@ -77,9 +77,7 @@ describe('AUTH_REPORT_SQL_OTEL', () => {
     expect(out).toContain(
       "toInt32OrZero(log_attributes['response.status_code']) between 400 and 599"
     )
-    expect(out).toContain(
-      "toInt32OrZero(log_attributes['response.status_code']) as status_code"
-    )
+    expect(out).toContain("toInt32OrZero(log_attributes['response.status_code']) as status_code")
   })
 
   it('selects the x_sb_error_code attribute for the by-code breakdown', () => {
@@ -92,8 +90,6 @@ describe('AUTH_REPORT_SQL_OTEL', () => {
     const out = sql(
       AUTH_REPORT_SQL_OTEL.ErrorsByStatus('1h', { status_code: { operator: '>=', value: 500 } })
     )
-    expect(out).toContain(
-      "AND toInt32OrZero(log_attributes['response.status_code']) >= 500"
-    )
+    expect(out).toContain("AND toInt32OrZero(log_attributes['response.status_code']) >= 500")
   })
 })

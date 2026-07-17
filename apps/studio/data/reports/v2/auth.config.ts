@@ -19,9 +19,9 @@ import {
 import {
   analyticsIntervalToGranularity,
   fetchLogs,
-  type Granularity,
   SAFE_COMPARISON_OPERATOR_SQL,
   SAFE_GRANULARITY_SQL,
+  type Granularity,
 } from '@/data/reports/report.utils'
 
 const AUTH_ERROR_CODE_LIST = Object.entries(AUTH_ERROR_CODES).map(([key, value]) => ({
@@ -974,64 +974,64 @@ export const createErrorsReportConfig = ({
 }): ReportConfig<AuthReportFilters>[] => {
   const sqlSet = useOtel ? AUTH_REPORT_SQL_OTEL : AUTH_REPORT_SQL
   return [
-  {
-    id: 'auth-errors',
-    label: 'API Gateway Auth Errors',
-    valuePrecision: 0,
-    hide: false,
-    showTooltip: true,
-    showLegend: true,
-    showMaxValue: false,
-    hideChartType: false,
-    defaultChartStyle: 'line',
-    titleTooltip: 'The total number of auth errors by status code from the API Gateway.',
-    dataProvider: async () => {
-      const sql = sqlSet.ErrorsByStatus(interval, filters)
-      const rawData = await fetchLogs(projectRef, sql, startDate, endDate, useOtel)
+    {
+      id: 'auth-errors',
+      label: 'API Gateway Auth Errors',
+      valuePrecision: 0,
+      hide: false,
+      showTooltip: true,
+      showLegend: true,
+      showMaxValue: false,
+      hideChartType: false,
+      defaultChartStyle: 'line',
+      titleTooltip: 'The total number of auth errors by status code from the API Gateway.',
+      dataProvider: async () => {
+        const sql = sqlSet.ErrorsByStatus(interval, filters)
+        const rawData = await fetchLogs(projectRef, sql, startDate, endDate, useOtel)
 
-      if (!rawData?.result) return { data: [] }
+        if (!rawData?.result) return { data: [] }
 
-      const statusCodes = extractStatusCodesFromData(rawData.result)
-      const attributes = generateStatusCodeAttributes(statusCodes)
-      const data = transformStatusCodeData(rawData.result, statusCodes)
+        const statusCodes = extractStatusCodesFromData(rawData.result)
+        const attributes = generateStatusCodeAttributes(statusCodes)
+        const data = transformStatusCodeData(rawData.result, statusCodes)
 
-      return { data, attributes, query: sql }
+        return { data, attributes, query: sql }
+      },
     },
-  },
-  {
-    id: 'auth-errors-by-code',
-    label: 'Auth Errors by Code',
-    valuePrecision: 0,
-    hide: false,
-    showTooltip: true,
-    showLegend: true,
-    showMaxValue: false,
-    hideChartType: false,
-    defaultChartStyle: 'line',
-    titleTooltip:
-      'The total number of auth errors by Supabase Auth error code from the API Gateway.',
-    dataProvider: async () => {
-      const sql = sqlSet.ErrorsByAuthCode(interval, filters)
-      const rawData = await fetchLogs(projectRef, sql, startDate, endDate, useOtel)
+    {
+      id: 'auth-errors-by-code',
+      label: 'Auth Errors by Code',
+      valuePrecision: 0,
+      hide: false,
+      showTooltip: true,
+      showLegend: true,
+      showMaxValue: false,
+      hideChartType: false,
+      defaultChartStyle: 'line',
+      titleTooltip:
+        'The total number of auth errors by Supabase Auth error code from the API Gateway.',
+      dataProvider: async () => {
+        const sql = sqlSet.ErrorsByAuthCode(interval, filters)
+        const rawData = await fetchLogs(projectRef, sql, startDate, endDate, useOtel)
 
-      if (!rawData?.result) return { data: [] }
+        if (!rawData?.result) return { data: [] }
 
-      const categories = rawData.result
-        .map((r: any) => r.error_code)
-        .filter((v: any) => v !== null && v !== undefined)
-      const distinct = Array.from(new Set(categories)).sort()
+        const categories = rawData.result
+          .map((r: any) => r.error_code)
+          .filter((v: any) => v !== null && v !== undefined)
+        const distinct = Array.from(new Set(categories)).sort()
 
-      const attributes = distinct.map((c: string) => ({
-        attribute: c,
-        label: c,
-        tooltip: AUTH_ERROR_CODE_LIST.find((e) => e.key === c)?.description,
-      }))
+        const attributes = distinct.map((c: string) => ({
+          attribute: c,
+          label: c,
+          tooltip: AUTH_ERROR_CODE_LIST.find((e) => e.key === c)?.description,
+        }))
 
-      const pivoted = transformCategoricalCountData(rawData.result, 'error_code', distinct)
+        const pivoted = transformCategoricalCountData(rawData.result, 'error_code', distinct)
 
-      return { data: pivoted, attributes, query: sql }
+        return { data: pivoted, attributes, query: sql }
+      },
     },
-  },
   ]
 }
 
