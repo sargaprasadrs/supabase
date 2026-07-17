@@ -302,6 +302,12 @@ const VercelIntegrationConnectionForm = ({
                       onClick={() => {
                         field.onChange('NEXT_PUBLIC_')
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          field.onChange('NEXT_PUBLIC_')
+                        }
+                      }}
                     >
                       NEXT_PUBLIC_
                     </code>
@@ -313,6 +319,12 @@ const VercelIntegrationConnectionForm = ({
                       onClick={() => {
                         field.onChange('VITE_PUBLIC_')
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          field.onChange('VITE_PUBLIC_')
+                        }
+                      }}
                     >
                       VITE_PUBLIC_
                     </code>
@@ -323,6 +335,12 @@ const VercelIntegrationConnectionForm = ({
                       tabIndex={disabled ? -1 : 0}
                       onClick={() => {
                         field.onChange('PUBLIC_')
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          field.onChange('PUBLIC_')
+                        }
                       }}
                     >
                       PUBLIC_

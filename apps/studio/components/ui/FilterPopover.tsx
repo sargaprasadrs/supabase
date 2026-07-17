@@ -122,7 +122,7 @@ export const FilterPopover = <T extends Record<string, any>>({
         {showOnlyButton && (
           <button
             tabIndex={0}
-            className="text-xs text-foreground-lighter hover:text-foreground-muted opacity-0 group-hover:opacity-100 transition-opacity"
+            className="text-xs text-foreground-lighter hover:text-foreground-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
             onClick={(e) => {
               e.preventDefault()
               setSelectedOptions([value])

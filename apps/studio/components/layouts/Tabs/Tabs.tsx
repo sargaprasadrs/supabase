@@ -230,7 +230,8 @@ export const EditorTabs = () => {
                 </div>
                 <span
                   role="button"
-                  tabIndex={0}
+                  tabIndex={-1}
+                  aria-label="Close new tab"
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()

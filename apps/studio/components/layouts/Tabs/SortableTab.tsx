@@ -116,7 +116,7 @@ export const SortableTab = ({
           )}
           <span
             role="button"
-            tabIndex={0}
+            tabIndex={-1}
             aria-label="Close tab"
             onClick={(e) => {
               e.preventDefault()
