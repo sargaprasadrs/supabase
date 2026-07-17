@@ -4,11 +4,11 @@ import { mkdir, readdir, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { BASE_PATH } from '~/lib/constants'
-import { GUIDES_DIRECTORY } from '~/lib/docs'
+import { GENERATED_DIRECTORY, GUIDES_DIRECTORY } from '~/lib/docs'
 import remarkMkDocsAdmonition from '~/lib/mdx/plugins/remarkAdmonition'
 import { removeTitle } from '~/lib/mdx/plugins/remarkRemoveTitle'
 import remarkPyMdownTabs from '~/lib/mdx/plugins/remarkTabs'
-import { getGitHubFileContents } from '~/lib/octokit'
+import { getGitHubFileContents, octokit, OCTOKIT_RETRY_OPTIONS } from '~/lib/octokit'
 import matter from 'gray-matter'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { gfmFromMarkdown, gfmToMarkdown } from 'mdast-util-gfm'
@@ -127,10 +127,61 @@ async function fetchSource(source: FederatedContentSource): Promise<void> {
   )
 }
 
+const AI_SKILLS_REPO = {
+  org: 'supabase',
+  repo: 'agent-skills',
+  branch: 'main',
+  path: 'skills',
+}
+
+/**
+ * Lists the skill directories in the agent-skills repo, fetches each
+ * `SKILL.md`'s frontmatter, and writes the summary to
+ * `features/docs/generated/ai-skills.json` for `AiSkills.utils.ts` to read.
+ */
+async function fetchAiSkills(): Promise<void> {
+  const { data: contents } = await octokit().request('GET /repos/{owner}/{repo}/contents/{path}', {
+    owner: AI_SKILLS_REPO.org,
+    repo: AI_SKILLS_REPO.repo,
+    path: AI_SKILLS_REPO.path,
+    ref: AI_SKILLS_REPO.branch,
+    request: OCTOKIT_RETRY_OPTIONS,
+  })
+
+  if (!Array.isArray(contents)) {
+    throw new Error('Expected directory listing from GitHub agent skills repo')
+  }
+
+  const skillDirs = contents.filter((item) => item.type === 'dir')
+
+  const skills = await Promise.all(
+    skillDirs.map(async (item) => {
+      const rawContent = await getGitHubFileContents({
+        org: AI_SKILLS_REPO.org,
+        repo: AI_SKILLS_REPO.repo,
+        branch: AI_SKILLS_REPO.branch,
+        path: `${AI_SKILLS_REPO.path}/${item.name}/SKILL.md`,
+      })
+      const { data } = matter(rawContent) as { data: { description?: string } }
+
+      return {
+        name: item.name,
+        description: data.description || '',
+        installCommand: `npx skills add supabase/agent-skills --skill ${item.name}`,
+      }
+    })
+  )
+
+  skills.sort((a, b) => a.name.localeCompare(b.name))
+
+  await mkdir(GENERATED_DIRECTORY, { recursive: true })
+  await writeFile(join(GENERATED_DIRECTORY, 'ai-skills.json'), JSON.stringify(skills, null, 2))
+}
+
 async function fetchFederatedContent() {
   const sources = await loadSources()
 
-  await Promise.all(sources.map(fetchSource))
+  await Promise.all([...sources.map(fetchSource), fetchAiSkills()])
 
   const pageCount = sources.reduce((sum, source) => sum + source.pageMap.length, 0)
   console.log(
