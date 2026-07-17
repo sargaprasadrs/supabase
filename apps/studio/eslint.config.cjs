@@ -80,6 +80,13 @@ module.exports = defineConfig([
       'jsx-a11y/no-distracting-elements': 'warn',
     },
   },
+  // Match the Studio ratchet: test mocks are excluded from enforce-as-error.
+  {
+    files: ['**/*.{test,spec}.{ts,tsx}'],
+    rules: {
+      'supabase/require-explicit-tabindex': 'off',
+    },
+  },
   // Analytics SQL wire boundary: every call to a SQL-bearing analytics
   // endpoint (`logs.all` / `logs.all.otel`) must go through
   // `executeAnalyticsSql` so the `SafeLogSqlFragment` brand is enforced at the

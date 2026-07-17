@@ -9,6 +9,8 @@ module.exports = defineConfig([
       'react/no-unescaped-entities': 'warn',
       'react/display-name': 'warn',
       'react/no-children-prop': 'warn',
+      // Studio cleared this rule's ratchet; www still has debt — keep warn until a sweep.
+      'supabase/require-explicit-tabindex': 'warn',
     },
   },
 ])
