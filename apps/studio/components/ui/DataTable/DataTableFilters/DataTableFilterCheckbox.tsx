@@ -123,6 +123,7 @@ export function DataTableFilterCheckbox<TData>({
                     {hasNested && (
                       <button
                         type="button"
+                        tabIndex={0}
                         aria-label={isExpanded ? 'Collapse' : 'Expand'}
                         aria-expanded={isExpanded}
                         onClick={() => toggleExpanded(optionKey)}
@@ -147,6 +148,7 @@ export function DataTableFilterCheckbox<TData>({
 
                     <button
                       type="button"
+                      tabIndex={0}
                       onClick={() => column?.setFilterValue([option.value])}
                       className={cn(
                         'text-xs text-muted-foreground hover:text-foreground',

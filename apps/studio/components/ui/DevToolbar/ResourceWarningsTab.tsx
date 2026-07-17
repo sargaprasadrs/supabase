@@ -138,6 +138,7 @@ export const ResourceWarningsTab = () => {
         <button
           onClick={handleReset}
           disabled={isDisabled}
+          tabIndex={isDisabled ? -1 : 0}
           className="text-xs text-foreground-lighter hover:text-foreground transition underline disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Reset to real data
@@ -216,6 +217,7 @@ interface SeverityButtonProps {
 const SeverityButton = ({ active, variant, onClick, children }: SeverityButtonProps) => (
   <button
     onClick={onClick}
+    tabIndex={0}
     className={cn(
       'px-1.5 py-0.5 rounded-sm text-xs font-mono transition border',
       active

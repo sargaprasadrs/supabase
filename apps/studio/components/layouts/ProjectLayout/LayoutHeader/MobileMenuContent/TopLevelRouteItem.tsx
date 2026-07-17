@@ -40,6 +40,7 @@ export function TopLevelRouteItem({
       {hasItems ? (
         <button
           type="button"
+          tabIndex={route.disabled ? -1 : 0}
           data-active={isActive}
           onClick={() => onTopLevelClick(route)}
           disabled={route.disabled}

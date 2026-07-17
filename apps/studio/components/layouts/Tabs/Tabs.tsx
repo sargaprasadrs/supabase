@@ -230,6 +230,7 @@ export const EditorTabs = () => {
                 </div>
                 <span
                   role="button"
+                  tabIndex={0}
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()

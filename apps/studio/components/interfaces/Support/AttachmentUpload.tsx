@@ -209,6 +209,7 @@ export function AttachmentUploadDisplay({
 
                 <button
                   type="button"
+                  tabIndex={0}
                   aria-label="Remove attachment"
                   className={cn(
                     'flex h-4 w-4 items-center justify-center rounded-full bg-red-900',
@@ -229,6 +230,7 @@ export function AttachmentUploadDisplay({
               >
                 <button
                   type="button"
+                  tabIndex={0}
                   aria-label="Remove attachment"
                   className={cn(
                     'flex h-4 w-4 items-center justify-center rounded-full bg-red-900',
@@ -245,6 +247,7 @@ export function AttachmentUploadDisplay({
         {!isFull && (
           <button
             type="button"
+            tabIndex={0}
             className={cn(
               'border border-stronger opacity-50 transition hover:opacity-100',
               'group flex h-14 w-14 cursor-pointer items-center justify-center rounded-sm'

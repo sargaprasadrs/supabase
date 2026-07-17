@@ -23,6 +23,7 @@ export const ConnectionParameters = ({ parameters, onCopy }: ConnectionParameter
             <span className="text-foreground-lighter">{param.key}:</span>
             <span className="ml-1 text-foreground">{param.value}</span>
             <button
+              tabIndex={0}
               onClick={() => {
                 copyToClipboard(param.value, () => {
                   setCopiedMap((prev) => ({ ...prev, [param.key]: true }))

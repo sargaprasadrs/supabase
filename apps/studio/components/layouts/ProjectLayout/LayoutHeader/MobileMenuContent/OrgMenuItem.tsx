@@ -39,6 +39,7 @@ export function OrgMenuItem({
       {onSubmenuClick ? (
         <button
           type="button"
+          tabIndex={disabled ? -1 : 0}
           data-active={isActive}
           onClick={() => onSubmenuClick?.(item)}
           disabled={disabled}

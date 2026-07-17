@@ -69,7 +69,7 @@ export const BucketsPolicies = ({
             </PageSectionDescription>
           </PageSectionSummary>
           <CollapsibleTrigger asChild>
-            <button>
+            <button tabIndex={0}>
               <span className="sr-only">Toggle bucket list</span>
               <ChevronUp
                 size={14}

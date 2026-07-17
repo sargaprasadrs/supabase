@@ -298,6 +298,7 @@ const VercelIntegrationConnectionForm = ({
                     <code
                       className="cursor-pointer"
                       role="button"
+                      tabIndex={disabled ? -1 : 0}
                       onClick={() => {
                         field.onChange('NEXT_PUBLIC_')
                       }}
@@ -308,6 +309,7 @@ const VercelIntegrationConnectionForm = ({
                     <code
                       className="cursor-pointer"
                       role="button"
+                      tabIndex={disabled ? -1 : 0}
                       onClick={() => {
                         field.onChange('VITE_PUBLIC_')
                       }}
@@ -318,6 +320,7 @@ const VercelIntegrationConnectionForm = ({
                     <code
                       className="cursor-pointer"
                       role="button"
+                      tabIndex={disabled ? -1 : 0}
                       onClick={() => {
                         field.onChange('PUBLIC_')
                       }}
