@@ -19,7 +19,13 @@
     "jsx-a11y/tabindex-no-positive": 0,
     "jsx-a11y/anchor-is-valid": 7,
     "jsx-a11y/heading-has-content": 2,
-    "jsx-a11y/no-distracting-elements": 0
+    "jsx-a11y/no-distracting-elements": 0,
+    "valtio/state-snapshot-rule": 1,
+    "valtio/avoid-this-in-proxy": 1,
+    "react-hook-form/destructuring-formstate": 0,
+    "react-hook-form/no-access-control": 0,
+    "react-hook-form/no-nested-object-setvalue": 0,
+    "react-hook-form/no-use-watch": 77
   },
   "ruleFiles": {
     "react-hooks/exhaustive-deps": {
@@ -1067,6 +1073,65 @@
     "jsx-a11y/heading-has-content": {
       "components/layouts/Scaffold.tsx": 2
     },
-    "jsx-a11y/no-distracting-elements": {}
+    "jsx-a11y/no-distracting-elements": {},
+    "valtio/state-snapshot-rule": {
+      "state/storage-explorer.tsx": 1
+    },
+    "valtio/avoid-this-in-proxy": {
+      "state/advisor-state.ts": 1
+    },
+    "react-hook-form/destructuring-formstate": {},
+    "react-hook-form/no-access-control": {},
+    "react-hook-form/no-nested-object-setvalue": {},
+    "react-hook-form/no-use-watch": {
+      "components/interfaces/Account/AccessTokens/Scoped/NewScopedTokenSheet.tsx": 4,
+      "components/interfaces/Account/Preferences/DeleteAccountButton.tsx": 1,
+      "components/interfaces/Advisors/CreateRuleSheet.tsx": 1,
+      "components/interfaces/Auth/AuditLogsForm.tsx": 1,
+      "components/interfaces/Auth/BasicAuthSettingsForm.tsx": 2,
+      "components/interfaces/Auth/EmailTemplates/TemplateEditor.tsx": 1,
+      "components/interfaces/Auth/Hooks/CreateHookSheet.tsx": 1,
+      "components/interfaces/Auth/MfaAuthSettingsForm/MfaAuthSettingsForm.tsx": 2,
+      "components/interfaces/Auth/OAuthApps/CreateOrUpdateOAuthAppSheet.tsx": 1,
+      "components/interfaces/Auth/OAuthApps/OAuthServerSettingsForm.tsx": 3,
+      "components/interfaces/Auth/PerformanceSettingsForm.tsx": 1,
+      "components/interfaces/Auth/RateLimits/RateLimits.tsx": 6,
+      "components/interfaces/Auth/RedirectUrls/AddNewURLModal.tsx": 1,
+      "components/interfaces/Auth/SmtpForm/SmtpForm.tsx": 2,
+      "components/interfaces/Auth/ThirdPartyAuthForm/CreateAwsCognitoAuthDialog.tsx": 1,
+      "components/interfaces/Auth/Users/BanUserModal.tsx": 1,
+      "components/interfaces/Billing/Payment/PaymentMethods/NewPaymentMethodElement.tsx": 1,
+      "components/interfaces/BranchManagement/CreateBranchModal.tsx": 1,
+      "components/interfaces/Database/Extensions/EnableExtensionModal.tsx": 1,
+      "components/interfaces/Database/Functions/CreateFunction/index.tsx": 1,
+      "components/interfaces/Database/Policies/PolicyEditorPanel/index.tsx": 1,
+      "components/interfaces/Database/Replication/DestinationPanel/DestinationForm/index.tsx": 1,
+      "components/interfaces/Database/Triggers/TriggerSheet.tsx": 1,
+      "components/interfaces/DiskManagement/DiskManagementForm.tsx": 3,
+      "components/interfaces/Functions/EdgeFunctionDetails/EdgeFunctionTesterSheet.tsx": 1,
+      "components/interfaces/Integrations/Queues/QueuesSettings.tsx": 1,
+      "components/interfaces/Integrations/Wrappers/CreateIcebergWrapperSheet.tsx": 1,
+      "components/interfaces/LogDrains/LogDrainDestinationSheetForm.tsx": 2,
+      "components/interfaces/Organization/BillingSettings/BillingEmail.tsx": 1,
+      "components/interfaces/Organization/BillingSettings/CreditTopUp.tsx": 1,
+      "components/interfaces/Organization/CloudMarketplace/NewAwsMarketplaceOrgForm.tsx": 1,
+      "components/interfaces/Organization/NewOrg/NewOrgForm.tsx": 5,
+      "components/interfaces/Organization/SSO/SSOConfig.tsx": 4,
+      "components/interfaces/Organization/TeamSettings/InviteMemberButton.tsx": 1,
+      "components/interfaces/Platform/Webhooks/PlatformWebhooksEndpointSheet.tsx": 2,
+      "components/interfaces/Realtime/RealtimeSettings.tsx": 1,
+      "components/interfaces/Settings/Database/ConnectionPooling/ConnectionPooling.tsx": 1,
+      "components/interfaces/Settings/Database/JitDatabaseAccess/JitDbAccessRuleSheet.tsx": 1,
+      "components/interfaces/Settings/General/CustomDomainConfig/CustomDomainsConfigureHostname.tsx": 1,
+      "components/interfaces/Settings/Integrations/GithubIntegration/GitHubIntegrationConnectionForm.tsx": 3,
+      "components/interfaces/SignIn/ResetPasswordForm.tsx": 1,
+      "components/interfaces/SignIn/SignInMfaForm.tsx": 1,
+      "components/interfaces/SignIn/SignUpForm.tsx": 1,
+      "components/interfaces/Storage/AnalyticsBuckets/AnalyticsBucketDetails/CreateTable/CreateTableSheet.tsx": 2,
+      "components/interfaces/Storage/CreateBucketModal.tsx": 2,
+      "components/interfaces/Storage/EditBucketModal.tsx": 2,
+      "components/interfaces/Storage/StorageSettings/StorageSettings.tsx": 1,
+      "components/interfaces/Support/LinkSupportTicketForm.tsx": 1
+    }
   }
 }
