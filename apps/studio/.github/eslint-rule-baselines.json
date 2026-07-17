@@ -19,8 +19,7 @@
     "jsx-a11y/tabindex-no-positive": 0,
     "jsx-a11y/anchor-is-valid": 7,
     "jsx-a11y/heading-has-content": 2,
-    "jsx-a11y/no-distracting-elements": 0,
-    "supabase/require-explicit-tabindex": 0
+    "jsx-a11y/no-distracting-elements": 0
   },
   "ruleFiles": {
     "react-hooks/exhaustive-deps": {
@@ -1068,7 +1067,6 @@
     "jsx-a11y/heading-has-content": {
       "components/layouts/Scaffold.tsx": 2
     },
-    "jsx-a11y/no-distracting-elements": {},
-    "supabase/require-explicit-tabindex": {}
+    "jsx-a11y/no-distracting-elements": {}
   }
 }
