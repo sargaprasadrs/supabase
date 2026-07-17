@@ -142,7 +142,7 @@ export const getStackId = (
   fallback: string
 ): string => {
   const configured = Array.isArray(attributes)
-    ? attributes.find((a) => a && a.attribute === name)?.stackId
+    ? attributes.find((a): a is MultiAttribute => !!a && a.attribute === name)?.stackId
     : undefined
   return configured ?? fallback
 }

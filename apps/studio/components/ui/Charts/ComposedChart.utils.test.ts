@@ -40,7 +40,12 @@ describe('getStackId', () => {
   })
 
   it('does not crash on falsy entries in the attributes array', () => {
-    const attributes = [false, null, undefined, attr('reads', 'io')]
+    const attributes: (MultiAttribute | false | null | undefined)[] = [
+      false,
+      null,
+      undefined,
+      attr('reads', 'io'),
+    ]
     expect(getStackId(attributes, 'reads', '1')).toBe('io')
     expect(getStackId(attributes, 'writes', '1')).toBe('1')
   })
