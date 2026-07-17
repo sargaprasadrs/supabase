@@ -36,10 +36,10 @@ import {
   generateSettingsRoutes,
   generateToolRoutes,
 } from '@/components/layouts/Navigation/NavigationBar/NavigationBar.utils'
-import { useAdvisorAttention } from '@/components/ui/AdvisorPanel/useAdvisorAttention'
 import { ProjectIndexPageLink } from '@/data/prefetchers/project.$ref'
 import { useHideSidebar } from '@/hooks/misc/useHideSidebar'
 import { useIsFeatureEnabled } from '@/hooks/misc/useIsFeatureEnabled'
+import { useLints } from '@/hooks/misc/useLints'
 import { useLocalStorageQuery } from '@/hooks/misc/useLocalStorage'
 import { useSelectedOrganizationQuery } from '@/hooks/misc/useSelectedOrganization'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
@@ -251,7 +251,7 @@ const ProjectLinks = () => {
   const router = useRouter()
   const { ref } = useParams()
   const { data: project, isPending: isProjectPending } = useSelectedProjectQuery()
-  const { hasCriticalIssues, hasWarningIssues } = useAdvisorAttention({ projectRef: ref })
+  const { securityLints, errorLints } = useLints()
   const showReports = useIsFeatureEnabled('reports:all')
   const showLogs = useIsFeatureEnabled('logs:all')
 
@@ -342,7 +342,10 @@ const ProjectLinks = () => {
                   {route.icon}
                   <span>{route.label}</span>
                   {!route.disabled && (
-                    <ActiveDot hasErrors={hasCriticalIssues} hasWarnings={hasWarningIssues} />
+                    <ActiveDot
+                      hasErrors={errorLints.length > 0}
+                      hasWarnings={securityLints.length > 0}
+                    />
                   )}
                 </SideBarNavLink>
               )

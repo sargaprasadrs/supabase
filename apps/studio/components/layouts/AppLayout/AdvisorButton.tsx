@@ -1,30 +1,42 @@
 import { Lightbulb } from 'lucide-react'
+import { useMemo } from 'react'
 import { cn } from 'ui'
 
 import { SIDEBAR_KEYS } from '@/components/layouts/ProjectLayout/LayoutSidebar/LayoutSidebarProvider'
-import { useAdvisorAttention } from '@/components/ui/AdvisorPanel/useAdvisorAttention'
+import { useAdvisorSignals } from '@/components/ui/AdvisorPanel/useAdvisorSignals'
 import { ButtonTooltip } from '@/components/ui/ButtonTooltip'
+import { useProjectLintsQuery } from '@/data/lint/lint-query'
+import { useNotificationsV2Query } from '@/data/notifications/notifications-v2-query'
+import { IS_PLATFORM } from '@/lib/constants'
 import { useTrack } from '@/lib/telemetry/track'
 import { useSidebarManagerSnapshot } from '@/state/sidebar-manager-state'
 
 export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
   const { toggleSidebar, activeSidebar } = useSidebarManagerSnapshot()
   const track = useTrack()
-  const { hasCriticalIssues, hasWarningIssues, hasUnreadNotifications } = useAdvisorAttention({
-    projectRef,
-  })
+
+  const { data: lints } = useProjectLintsQuery({ projectRef })
+  const { data: signalItems } = useAdvisorSignals({ projectRef })
+
+  const { data: notificationsData } = useNotificationsV2Query(
+    { filters: {}, limit: 20 },
+    { enabled: IS_PLATFORM }
+  )
+  const notifications = useMemo(() => {
+    return notificationsData?.pages.flatMap((page) => page) ?? []
+  }, [notificationsData?.pages])
+  const hasUnreadNotifications = notifications.some((x) => x?.status === 'new')
+  const hasCriticalNotifications = notifications.some((x) => x?.priority === 'Critical')
+  const hasSignals = signalItems.length > 0
+  const hasCriticalSignals = signalItems.some((item) => item.severity === 'critical')
+
+  const hasCriticalIssues =
+    hasCriticalNotifications ||
+    hasCriticalSignals ||
+    (Array.isArray(lints) && lints.some((lint) => lint.level === 'ERROR'))
+  const hasWarningIssues = hasSignals && !hasCriticalIssues
 
   const isOpen = activeSidebar?.id === SIDEBAR_KEYS.ADVISOR_PANEL
-
-  const statusLabel = hasCriticalIssues
-    ? 'Critical advisor issues'
-    : hasWarningIssues
-      ? 'Advisor warnings'
-      : hasUnreadNotifications
-        ? 'Unread advisor notifications'
-        : undefined
-
-  const accessibleLabel = statusLabel ? `Advisor Center, ${statusLabel}` : 'Advisor Center'
 
   const handleClick = () => {
     track('header_advisor_button_clicked')
@@ -37,7 +49,6 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
         variant="outline"
         size="tiny"
         id="advisor-center-trigger"
-        aria-label={accessibleLabel}
         className={cn(
           'rounded-full w-[32px] h-[32px] flex items-center justify-center p-0 group',
           // Critical fill/border only when idle — selected matches the other
@@ -62,10 +73,10 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
             isOpen && 'text-background group-hover:text-background'
           )}
         />
+        <span className="sr-only">Advisor Center</span>
       </ButtonTooltip>
       {hasCriticalIssues ? (
         <span
-          aria-hidden="true"
           className={cn(
             'absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full',
             // Slightly lighter on the inverted selected fill in light mode only.
@@ -73,15 +84,9 @@ export const AdvisorButton = ({ projectRef }: { projectRef?: string }) => {
           )}
         />
       ) : hasWarningIssues ? (
-        <span
-          aria-hidden="true"
-          className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-warning"
-        />
+        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-warning" />
       ) : hasUnreadNotifications ? (
-        <span
-          aria-hidden="true"
-          className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand"
-        />
+        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand" />
       ) : null}
     </div>
   )
