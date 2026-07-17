@@ -201,14 +201,15 @@ export const MarketplaceFilterBar = ({
       </DropdownMenu>
 
       {showClear && (
-        <button
+        <Button
           type="button"
-          tabIndex={0}
+          variant="text"
+          size="tiny"
           onClick={onClearFilters}
-          className="px-1 text-xs text-foreground-light underline-offset-2 hover:underline"
+          className="text-foreground-light"
         >
           Clear all
-        </button>
+        </Button>
       )}
 
       <div className="ml-auto flex rounded-md border">
