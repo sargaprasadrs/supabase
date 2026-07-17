@@ -78,9 +78,12 @@ module.exports = defineConfig([
       'jsx-a11y/anchor-is-valid': 'warn',
       'jsx-a11y/heading-has-content': 'warn',
       'jsx-a11y/no-distracting-elements': 'warn',
+      // Graduated from the Studio ratchet (baseline 0). Shared config stays warn
+      // until www/docs/design-system are swept; Studio enforces as error on app code.
+      'supabase/require-explicit-tabindex': 'error',
     },
   },
-  // Match the Studio ratchet: test mocks are excluded from enforce-as-error.
+  // Match the old ratchet: test mocks are excluded from enforce-as-error.
   {
     files: ['**/*.{test,spec}.{ts,tsx}'],
     rules: {
