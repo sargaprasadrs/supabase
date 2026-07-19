@@ -6,15 +6,9 @@ description: 'Customizing Postgres log configurations'
 subtitle: 'Modify logs to better suit your observability and compliance requirements'
 ---
 
-<Admonition type="caution">
-
-High-volume log settings (labeled) can degrade database performance and increase logging costs. Configure them with caution for debugging or mandatory compliance.
-
-</Admonition>
-
 # Available log settings:
 
-The table outlines **configurable** log settings. For more information about each one, check its respective section.
+The table outlines _configurable_ log settings. For more information about each one, check its respective section.
 
 | Setting                                                        | Category            | Type                  |  Default  |
 | :------------------------------------------------------------- | :------------------ | :-------------------- | :-------: |
@@ -33,9 +27,9 @@ The table outlines **configurable** log settings. For more information about eac
 | [`log_statement`](#logstatement)                               | Query Activity      | `SQL`                 |   `ddl`   |
 | [`log_min_error_statement`](#logminerrorstatement)             | Query Activity      | `SQL`                 |  `error`  |
 | [`pgaudit.*`](#pgaudit)                                        | Query Activity      | `SQL`                 |   `N/A`   |
-| [`cron.log_statement`](#cronlogstatement)                      | Extension Activity  | `API` + `CLI`         |  `true`   |
+| [`cron.log_statement`](#cronlogstatement)                      | Query Activity      | `API` + `CLI`         |  `true`   |
 
-To view log settings for your project, you can execute:
+To view log settings for your project, you can run:
 
 ```sql
 select
@@ -82,9 +76,19 @@ There are three potential ways to change log settings:
 - [Supabase Management API](/docs/reference/api/v1-update-postgres-config)
 - **SQL commands**
 
-### Configure with the CLI
+<Accordion
+  type="default"
+  chevronAlign="right"
+  justified
+  size="medium"
+  className="text-foreground-light mt-8 mb-6"
+>
+    <AccordionItem
+      header="Configure with the CLI"
+      id="item-1"
+    >
 
-Install the [Supabase CLI](/docs/guides/local-development/cli/getting-started) then update the relevant setting:
+    Install the [Supabase CLI](/docs/guides/local-development/cli/getting-started) then update the relevant setting:
 
 ```sql
 supabase --experimental \
@@ -100,7 +104,12 @@ postgres-config delete --config log_lock_waits,log_disconnections,... \
 --project-ref <project-ref>
 ```
 
-### Configure with the management API
+    </AccordionItem>
+
+    <AccordionItem
+      header="Configure with the management API"
+      id="item-2"
+    >
 
 Before using the API, generate an [access token](/dashboard/account/tokens), then update the desired setting:
 
@@ -114,7 +123,12 @@ curl https://api.supabase.com/v1/projects/PROJECT_REF/config/database/postgres \
 }'
 ```
 
-### Configure with SQL
+    </AccordionItem>
+
+        <AccordionItem
+      header="Configure with SQL"
+      id="item-3"
+    >
 
 <Admonition type="caution">
 
@@ -150,17 +164,15 @@ NOTIFY pgrst, 'reload config';
 
 </Admonition>
 
+    </AccordionItem>
+
+</Accordion>
+
 ## Networking log settings
 
 Logs information about clients connecting/disconnecting from the database. Some insightful values captured include when a client first authenticated, how long they were connected for, and their IP address.
 
 ### `log_connections`
-
-<Admonition type="caution">
-
-Can produce high levels of log activity, especially for servers with frequent connects/disconnects.
-
-</Admonition>
 
 Logs when a client establishes a new database connection, including connection receipt, authentication, and authorization.
 
@@ -202,12 +214,6 @@ postgres-config update --config log_connections=true \
 ```
 
 ### `log_disconnections`
-
-<Admonition type="caution">
-
-Can produce high levels of log activity, especially for servers with frequent connects/disconnects.
-
-</Admonition>
 
 Logs when a database connection gracefully closes.
 
@@ -477,6 +483,12 @@ postgres-config update --config log_recovery_conflict_waits=true \
 
 ## Query activity log settings
 
+<Admonition type="caution">
+
+Logging a large amount of query activity can impact query performance and increase logging costs. Configure them with caution for debugging or mandatory compliance.
+
+</Admonition>
+
 Records queries or metadata about queries.
 
 ### `log_min_messages`
@@ -504,12 +516,6 @@ Note: `log` is considered more severe than `warning` and `error`.
 
 </Admonition>
 
-<Admonition type="caution">
-
-Setting `log_min_messages` to severity levels above `warning` (e.g., `info`, `debug1`) can generate excessive logs that degrade database performance. These permissive levels are often intended for temporary debugging or internal development visibility, not general production observability.
-
-</Admonition>
-
 **Useful for:**
 
 - Controlling what _query generated logs_ are recorded overall
@@ -521,12 +527,6 @@ alter role "postgres" set "log_min_messages" to 'log';
 ```
 
 ### `auto_explain.*`
-
-<Admonition type="caution">
-
-To avoid excessive logging and mild performance penalties, it is not advised to configure `auto_explain.log_min_duration` below `1s` except briefly for debugging.
-
-</Admonition>
 
 [auto_explain](https://www.postgresql.org/docs/current/auto-explain.html) is a Postgres module that is installed on all Supabase projects. It logs the statements and [explain plans](https://www.postgresql.org/docs/current/sql-explain.html) of queries that took more than the setting's limit.
 
@@ -555,12 +555,6 @@ alter role "postgres" set "auto_explain.log_min_duration" to '2s';
 
 ### `log_min_duration_statement`
 
-<Admonition type="caution">
-
-To avoid excessive logging and mild performance penalties, it is not advised to configure `log_min_duration_statement` below `1s` except for brief periods to help with optimization and debugging.
-
-</Admonition>
-
 A limited version of `auto_explain.log_min_duration`. It only logs query statements that run longer than the setting's limit.
 
 **Useful for:**
@@ -580,12 +574,6 @@ alter role "postgres" set "log_min_duration_statement" to '2s';
 ```
 
 ### `log_duration`
-
-<Admonition type="caution">
-
-To avoid excessive logging and mild performance penalties, it is not advised to configure `log_duration` except for brief periods to help with optimization and debugging.
-
-</Admonition>
 
 It logs the duration of all queries, but not the queries themselves.
 
@@ -616,7 +604,7 @@ alter role "postgres" set "log_duration" to true;
 
 <Admonition type="caution">
 
-To avoid excessive logging and performance penalties, it is not advised to configure `log_statement` with the configs the `mod` and `all`. Consider using `pg_audit` over `log_statement` for more granular control over query logging.
+To avoid excessive logging and performance penalties, it is not advised to configure `log_statement` with the configs the `mod` and `all`. Consider using [`pgaudit`](#pgaudit) over `log_statement` for more granular control over query logging.
 
 </Admonition>
 
@@ -646,12 +634,6 @@ alter role "postgres" set "log_statement" to 'none';
 
 ### `pgaudit.*`
 
-<Admonition type="caution">
-
-To avoid excessive logging and performance penalties, it is not advised to configure `pg_audit` globally. Instead, it is better to target specific roles, operations, and tables.
-
-</Admonition>
-
 A suite of log settings enabled by the [pgAudit extension](/docs/guides/database/extensions/pgaudit). Unlike `log_statement`, it allows you to monitor queries against specific tables, with a higher degree of granularity.
 
 **Useful for:**
@@ -675,7 +657,7 @@ Review the [pgAudit docs](/docs/guides/database/extensions/pgaudit) for more con
 
 ### `log_min_error_statement`
 
-Determines if a log event should record the query that induced it as a subfield if possible. By default all `ERROR` level and below logs record the query that induced them. To view the severity levels, reference [log_min_messages](#log_min_messages).
+Determines if a log event should record the query that induced it as a subfield if possible. By default all `ERROR` level and below logs record the query that induced them. To view the severity levels, reference [log_min_messages](#logminmessages).
 
 **Useful for:**
 
@@ -697,17 +679,7 @@ query: "insert into example (id) values (1), (1);
 alter role "postgres" set "log_min_error_statement" to 'error';
 ```
 
-## Extension activity
-
-Logs activity related to extension background operations.
-
 ### `cron.log_statement`
-
-<Admonition type="caution">
-
-Can produce high levels of log activity for servers with frequent cron executions.
-
-</Admonition>
 
 Logs when the [pg_cron extension](/docs/guides/cron/install) starts a cron job.
 
@@ -733,7 +705,7 @@ Beyond logs, [pg_cron](/docs/guides/cron/install) records all cron executions in
 
 Changing cron.log_statement requires a database restart, which is automatically initiated when the configuration is updated and typically takes only a few seconds.
 
-If you're using the CLI, you can add the `--no-restart` flag to postpone it. However, the new setting won't take effect until the database is restarted.
+If you're using the CLI, you can add the [--no-restart flag](/docs/reference/cli/supabase-postgres-config-update) to postpone it. Likewise, for the API, you can use the [restart_database argument](/docs/reference/api/v1-update-pooler-config) However, the new setting won't take effect until the database is restarted.
 
 </Admonition>
 
@@ -756,7 +728,5 @@ postgres-config update --config cron.log_statement=false \
 ## Resources
 
 - [Advanced Log Filtering](/docs/guides/telemetry/advanced-log-filtering)
-- [Official `PGAudit` documentation](https://www.pgaudit.org)
 - [Database Function Logging](/docs/guides/database/functions#general-logging)
 - [Supabase Logging](/docs/guides/telemetry/logs)
-- [Self-Hosting Logs](/docs/reference/self-hosting-analytics/introduction)
