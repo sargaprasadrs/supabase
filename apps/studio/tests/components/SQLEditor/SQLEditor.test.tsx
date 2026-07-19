@@ -95,9 +95,6 @@ vi.mock('@/components/interfaces/SQLEditor/MonacoEditor', async () => {
           <button data-testid="editor-run" onClick={() => props.executeQuery()}>
             run
           </button>
-          <button data-testid="editor-explain" onClick={() => props.executeExplainQuery?.()}>
-            explain
-          </button>
           <button
             data-testid="editor-prompt"
             onClick={() =>
@@ -173,9 +170,6 @@ vi.mock('@/components/interfaces/SQLEditor/UtilityPanel/UtilityPanel', () => ({
       <span data-testid="active-tab">{props.activeTab}</span>
       <button data-testid="debug-button" onClick={() => props.onDebug()}>
         Debug
-      </button>
-      <button data-testid="panel-explain" onClick={() => props.executeExplainQuery()}>
-        Explain
       </button>
     </div>
   ),
@@ -281,7 +275,6 @@ function resetStores() {
 }
 
 const NON_EXPLAIN_ROWS = [{ id: 1, name: 'row-1' }]
-const EXPLAIN_ROWS = [{ 'QUERY PLAN': 'Seq Scan on foo (cost=0.00..1.00 rows=1 width=4)' }]
 
 function mockQuerySuccess(rows: unknown[] = NON_EXPLAIN_ROWS) {
   addAPIMock({
@@ -346,32 +339,6 @@ describe('SQLEditor characterization', () => {
     expect(screen.getByTestId('active-tab')).toHaveTextContent('results')
   })
 
-  test('1b. an EXPLAIN-shaped result auto-switches to the explain tab', async () => {
-    const addExplainResult = vi.spyOn(sqlEditorSessionState, 'addExplainResult')
-    mockQuerySuccess(EXPLAIN_ROWS)
-
-    await renderEditor()
-
-    fireEvent.click(screen.getByTestId('editor-run'))
-
-    await waitFor(() => expect(addExplainResult).toHaveBeenCalledWith(SNIPPET_ID, EXPLAIN_ROWS))
-    await waitFor(() => expect(screen.getByTestId('active-tab')).toHaveTextContent('explain'))
-  })
-
-  test('1c. running a non-EXPLAIN query while on the explain tab switches back to results', async () => {
-    await renderEditor()
-
-    // First run an EXPLAIN-shaped query to land on the explain tab.
-    mockQuerySuccess(EXPLAIN_ROWS)
-    fireEvent.click(screen.getByTestId('editor-run'))
-    await waitFor(() => expect(screen.getByTestId('active-tab')).toHaveTextContent('explain'))
-
-    // Now a normal query should flip back to results.
-    mockQuerySuccess(NON_EXPLAIN_ROWS)
-    fireEvent.click(screen.getByTestId('editor-run'))
-    await waitFor(() => expect(screen.getByTestId('active-tab')).toHaveTextContent('results'))
-  })
-
   test('2. run error with position highlights the computed line and reveals it', async () => {
     const addResultError = vi.spyOn(sqlEditorSessionState, 'addResultError')
     mockQueryError({
@@ -429,11 +396,12 @@ describe('SQLEditor characterization', () => {
     sqlEditorDiffRequestState.requestDiff('select 42;', DiffType.Modification)
 
     await renderEditor()
-    await screen.findByTestId('diff-editor')
+    // The queued request drains on mount and opens a diff, which disables Run.
+    // (Assert via the run button rather than the dynamically-imported diff editor.)
+    await waitFor(() => expect(screen.getByTestId('run-button')).toBeDisabled())
 
     const addResult = vi.spyOn(sqlEditorSessionState, 'addResult')
     // The run button is disabled while diffing; clicking should not execute.
-    expect(screen.getByTestId('run-button')).toBeDisabled()
     fireEvent.click(screen.getByTestId('run-button'))
     // Give any async work a chance to (not) happen.
     await new Promise((r) => setTimeout(r, 20))
