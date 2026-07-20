@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 import { Minus, MoreVertical, StopCircle } from 'lucide-react'
+import { parseAsJson, useQueryState } from 'nuqs'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -31,10 +32,25 @@ import {
 } from 'ui'
 import { CodeBlock } from 'ui-patterns/CodeBlock'
 
+import { ReportsSelectFilter, selectFilterSchema } from '../../Reports/v2/ReportsSelectFilter'
 import { formatDuration } from '@/components/interfaces/QueryPerformance/QueryPerformance.utils'
 import { useDatabaseActivityQuery, type DatabaseActivity } from '@/data/database/activity-query'
 import { useQueryAbortMutation } from '@/data/sql/abort-query-mutation'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
+
+const getDuration = (activity: DatabaseActivity) => {
+  const { state } = activity
+  if (state === 'active' && activity.query_start) {
+    return dayjs().utc().diff(dayjs(activity.query_start).utc(), 'second')
+  }
+  if (state === 'idle') {
+    return dayjs().utc().diff(dayjs(activity.state_change).utc(), 'second')
+  }
+  if (state === 'idle in transaction' || state === 'idle in transaction (aborted)') {
+    return dayjs().utc().diff(dayjs(activity.transaction_start).utc(), 'second')
+  }
+  return null
+}
 
 interface ActivityProps {
   live?: boolean
@@ -44,14 +60,36 @@ export const Activity = ({ live }: ActivityProps) => {
   const { data: project } = useSelectedProjectQuery()
 
   const [, setNow] = useState(() => dayjs())
+  const [stateFilter, setStateFilter] = useQueryState(
+    'functions',
+    parseAsJson(selectFilterSchema.parse)
+  )
 
-  const { data: activities } = useDatabaseActivityQuery(
+  const { data, isPending } = useDatabaseActivityQuery(
     {
       projectRef: project?.ref,
       connectionString: project?.connectionString,
     },
     { refetchInterval: live ? 3000 : false }
   )
+
+  const activities =
+    stateFilter && stateFilter.length > 0
+      ? data?.filter((activity) => activity.state !== null && stateFilter.includes(activity.state))
+      : data
+
+  const stateOptions = [
+    'Idle',
+    'Active',
+    'Idle in transaction',
+    'Idle in transaction (aborted)',
+    'Fastpath function call',
+    'Disabled',
+  ].map((x) => ({
+    label: x,
+    value: x.toLowerCase(),
+    quantity: data?.filter((y) => y.state === x.toLowerCase()).length,
+  }))
 
   // [Joshen] Just to trigger a UI re-render for the duration to be "live"
   useEffect(() => {
@@ -61,7 +99,17 @@ export const Activity = ({ live }: ActivityProps) => {
 
   return (
     <div className="flex flex-col gap-y-4">
-      <h2>Sessions</h2>
+      <div className="flex gap-x-4">
+        <h2>Sessions</h2>
+        <ReportsSelectFilter
+          label="State"
+          options={stateOptions}
+          value={stateFilter ?? []}
+          onChange={setStateFilter}
+          isLoading={isPending}
+          popoverClassName="w-60"
+        />
+      </div>
 
       <Card>
         <Table>
@@ -102,20 +150,6 @@ const ActivityRow = ({ activity }: { activity: DatabaseActivity }) => {
     return 'default'
   }
 
-  const getDuration = (activity: DatabaseActivity) => {
-    const { state } = activity
-    if (state === 'active' && activity.query_start) {
-      return dayjs().utc().diff(dayjs(activity.query_start).utc(), 'second')
-    }
-    if (state === 'idle') {
-      return dayjs().utc().diff(dayjs(activity.state_change).utc(), 'second')
-    }
-    if (state === 'idle in transaction' || state === 'idle in transaction (aborted)') {
-      return dayjs().utc().diff(dayjs(activity.transaction_start).utc(), 'second')
-    }
-    return null
-  }
-
   const durationSeconds = getDuration(activity)
 
   const onConfirmTerminate = async () => {
@@ -130,7 +164,7 @@ const ActivityRow = ({ activity }: { activity: DatabaseActivity }) => {
 
   return (
     <>
-      <TableRow key={activity.pid}>
+      <TableRow id={activity.pid.toString()} key={activity.pid}>
         <TableCell>
           <Badge variant={getBadgeVariant(activity.state)}>{activity.state}</Badge>
         </TableCell>
@@ -166,7 +200,12 @@ const ActivityRow = ({ activity }: { activity: DatabaseActivity }) => {
         </TableCell>
 
         <TableCell>
-          <p className="tabular-nums truncate">
+          <p
+            className={cn(
+              'tabular-nums truncate',
+              activity.state === 'active' && (durationSeconds ?? 0) > 5 ? 'text-warning' : undefined
+            )}
+          >
             {durationSeconds !== null ? (
               formatDuration(durationSeconds * 1000, 0)
             ) : (
