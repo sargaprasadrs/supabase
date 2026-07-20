@@ -91,6 +91,16 @@ export const useGenerateObservabilityMenu = () => {
           },
         ]
       : []),
+    ...(topForPostgres
+      ? [
+          {
+            name: 'Database Connections',
+            key: 'database-connections',
+            url: `${baseUrl}/connections`,
+            shortcutId: SHORTCUT_IDS.NAV_OBSERVABILITY_API_GATEWAY,
+          },
+        ]
+      : []),
   ]
 
   const productItems: ObservabilityMenuItem[] = [
