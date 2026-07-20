@@ -152,6 +152,15 @@ const ActivityRow = ({ activity }: { activity: DatabaseActivity }) => {
 
   const durationSeconds = getDuration(activity)
 
+  /**
+   * Queries in "active state": 30s threshold is long enough (most CRUD queries should be quick)
+   * Queries in "idle in transaction" state: This actively holds locks and blocks autovacuum while contributing nothing, so important to surface early at 10s threshold
+   */
+  const queryRunningLongWarning =
+    !!durationSeconds &&
+    ((activity.state === 'active' && durationSeconds >= 30) ||
+      (activity.state === 'idle in transaction' && durationSeconds >= 10))
+
   const onConfirmTerminate = async () => {
     try {
       await abortQuery({
@@ -203,9 +212,7 @@ const ActivityRow = ({ activity }: { activity: DatabaseActivity }) => {
           <p
             className={cn(
               'tabular-nums truncate',
-              activity.state === 'active' && (durationSeconds ?? 0) > 60
-                ? 'text-warning'
-                : undefined
+              queryRunningLongWarning ? 'text-warning' : undefined
             )}
           >
             {durationSeconds !== null ? (
