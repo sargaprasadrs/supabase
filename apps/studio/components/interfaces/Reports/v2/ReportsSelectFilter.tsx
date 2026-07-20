@@ -4,16 +4,7 @@ import { Label } from '@ui/components/shadcn/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@ui/components/shadcn/ui/popover'
 import { ChevronDown } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import {
-  Badge,
-  Button,
-  cn,
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from 'ui'
+import { Button, cn, Command, CommandEmpty, CommandInput, CommandItem, CommandList } from 'ui'
 import { z } from 'zod'
 
 export interface ReportSelectOption {
