@@ -203,7 +203,9 @@ const ActivityRow = ({ activity }: { activity: DatabaseActivity }) => {
           <p
             className={cn(
               'tabular-nums truncate',
-              activity.state === 'active' && (durationSeconds ?? 0) > 5 ? 'text-warning' : undefined
+              activity.state === 'active' && (durationSeconds ?? 0) > 60
+                ? 'text-warning'
+                : undefined
             )}
           >
             {durationSeconds !== null ? (
